@@ -2,6 +2,7 @@
 import { useNetStore } from "../../game/state/netStore";
 import { useLobbyStore, selectIsHost, selectMe } from "../../game/state/lobbyStore";
 import { BOAT_COLORS, MIN_PLAYERS_TO_START, TIMER_OPTIONS } from "../../lib/constants";
+import { pirateBtn } from "../../lib/uiStyles";
 import { Heart } from "../Heart";
 
 const panel: React.CSSProperties = {
@@ -201,13 +202,4 @@ export function Lobby() {
   );
 }
 
-function btn(bg: string): React.CSSProperties {
-  return {
-    background: bg,
-    color: "#f3e2bf",
-    border: "2px solid rgba(0,0,0,0.3)",
-    borderRadius: 6,
-    padding: "8px 12px",
-    fontWeight: 700,
-  };
-}
+const btn = (bg: string): React.CSSProperties => pirateBtn(bg, { padding: "8px 12px" });

@@ -8,6 +8,7 @@ import { Lobby } from "../../../components/ui/Lobby";
 import { Hud } from "../../../components/ui/Hud";
 import { Countdown } from "../../../components/ui/Countdown";
 import { Leaderboard } from "../../../components/ui/Leaderboard";
+import { FONT_MONO, INPUT } from "../../../lib/uiStyles";
 
 export default function RoomPage({ params }: { params: { code: string } }) {
   const code = (params.code || "").toUpperCase();
@@ -60,15 +61,7 @@ function NameGate({ onSet }: { onSet: (n: string) => void }) {
           maxLength={16}
           onChange={(e) => setV(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && v.trim() && onSet(v.trim().slice(0, 16))}
-          style={{
-            padding: "12px 14px",
-            fontSize: 18,
-            fontFamily: "inherit",
-            border: "3px solid var(--wood)",
-            borderRadius: 6,
-            background: "#fff7e6",
-            color: "var(--ink)",
-          }}
+          style={INPUT}
         />
       </div>
     </Center>
@@ -85,7 +78,7 @@ function Center({ children }: { children: React.ReactNode }) {
         placeItems: "center",
         background: "radial-gradient(circle at 50% 30%, #1d4a63, #0b1d28)",
         color: "#f3e2bf",
-        fontFamily: "ui-monospace, monospace",
+        fontFamily: FONT_MONO,
         fontSize: 22,
         zIndex: 50,
       }}

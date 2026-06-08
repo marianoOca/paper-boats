@@ -2,6 +2,7 @@
 import { useNetStore } from "../../game/state/netStore";
 import { useLobbyStore } from "../../game/state/lobbyStore";
 import { COUNTDOWN_MS } from "../../lib/constants";
+import { FONT_MONO } from "../../lib/uiStyles";
 import { useTick } from "./useTick";
 
 export function Countdown() {
@@ -21,7 +22,7 @@ export function Countdown() {
         display: "grid",
         placeItems: "center",
         pointerEvents: "none",
-        fontFamily: "ui-monospace, monospace",
+        fontFamily: FONT_MONO,
       }}
     >
       <div

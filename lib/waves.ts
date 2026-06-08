@@ -33,20 +33,6 @@ export function waveHeight(x: number, z: number, t: number): number {
   return h;
 }
 
-/** Upward surface normal at world (x,z) and time t. */
-export function waveNormal(x: number, z: number, t: number): [number, number, number] {
-  let dx = 0;
-  let dz = 0;
-  for (const w of WAVES) {
-    const { nx, nz } = norm(w);
-    const c = w.amp * w.freq * Math.cos((nx * x + nz * z) * w.freq + t * w.speed + w.phase);
-    dx += nx * c;
-    dz += nz * c;
-  }
-  const len = Math.hypot(dx, 1, dz) || 1;
-  return [-dx / len, 1 / len, -dz / len];
-}
-
 /** GLSL source for `float waveHeight(vec2 p, float t)` with the table baked in. */
 export function waveGLSL(): string {
   const lines = WAVES.map((w) => {

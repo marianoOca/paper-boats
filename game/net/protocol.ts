@@ -44,7 +44,6 @@ export type EntTuple = [
 export type BallTuple = [string, number, number, number];
 
 export const FLAG_ALIVE = 1 << 0;
-export const FLAG_HITFLASH = 1 << 1;
 
 export type GameEvent =
   | { k: "fire"; owner: string; origin: [number, number, number]; dir: [number, number, number] }

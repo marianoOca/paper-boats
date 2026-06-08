@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { FONT_MONO, PANEL, pirateBtn, INPUT } from "../lib/uiStyles";
 
 export default function Landing() {
   const router = useRouter();
@@ -28,17 +29,13 @@ export default function Landing() {
         display: "grid",
         placeItems: "center",
         background: "radial-gradient(circle at 50% 25%, #1d4a63, #0b1d28)",
-        fontFamily: "ui-monospace, monospace",
+        fontFamily: FONT_MONO,
         padding: 20,
       }}
     >
       <div
         style={{
-          background: "var(--parchment)",
-          color: "var(--ink)",
-          border: "4px solid var(--wood)",
-          borderRadius: 10,
-          boxShadow: "0 12px 0 rgba(0,0,0,0.3)",
+          ...PANEL,
           padding: 30,
           width: "min(440px, 94vw)",
           textAlign: "center",
@@ -126,26 +123,7 @@ const splashStyle: React.CSSProperties = {
   pointerEvents: "none",
 };
 
-const input: React.CSSProperties = {
-  width: "100%",
-  padding: "12px 14px",
-  fontSize: 18,
-  fontFamily: "inherit",
-  border: "3px solid var(--wood)",
-  borderRadius: 6,
-  background: "#fff7e6",
-  color: "var(--ink)",
-};
+const input: React.CSSProperties = { width: "100%", ...INPUT };
 
-function btn(bg: string): React.CSSProperties {
-  return {
-    background: bg,
-    color: "#f3e2bf",
-    border: "2px solid rgba(0,0,0,0.3)",
-    borderRadius: 6,
-    padding: "12px 16px",
-    fontWeight: 700,
-    fontFamily: "inherit",
-    cursor: "pointer",
-  };
-}
+const btn = (bg: string): React.CSSProperties =>
+  pirateBtn(bg, { padding: "12px 16px", fontFamily: "inherit", cursor: "pointer" });

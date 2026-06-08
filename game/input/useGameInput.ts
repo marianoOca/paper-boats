@@ -35,6 +35,16 @@ export function useGameInput() {
       });
     };
 
+    const tryLock = () => {
+      if (!locked()) canvas()?.requestPointerLock();
+    };
+
+    const switchToCannon = () => {
+      useInputStore.getState().setMode(MODE_CANNON);
+      held.clear();
+      useInputStore.setState({ throttle: 0, steer: 0 });
+    };
+
     const onKeyDown = (e: KeyboardEvent) => {
       if (!playing() || isSunk()) return;
       if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Space"].includes(e.code))
@@ -57,10 +67,8 @@ export function useGameInput() {
 
       // MODE_MOVE
       if (e.code === "Space") {
-        useInputStore.getState().setMode(MODE_CANNON);
-        held.clear();
-        useInputStore.setState({ throttle: 0, steer: 0 });
-        if (!locked()) canvas()?.requestPointerLock();
+        switchToCannon();
+        tryLock();
         return;
       }
 
@@ -75,15 +83,13 @@ export function useGameInput() {
     const onMouseDown = (e: MouseEvent) => {
       if (!playing()) return;
       if (isSunk()) {
-        if (!locked()) canvas()?.requestPointerLock();
+        tryLock();
         return;
       }
-      if (!locked()) canvas()?.requestPointerLock();
+      tryLock();
       const cur = useInputStore.getState().mode;
       if (cur === MODE_MOVE) {
-        useInputStore.getState().setMode(MODE_CANNON);
-        held.clear();
-        useInputStore.setState({ throttle: 0, steer: 0 });
+        switchToCannon();
       } else if (e.button === 0) {
         const { lastFireAt } = useInputStore.getState();
         const ready = (performance.now() - lastFireAt) / CANNON.reloadMs >= 1;

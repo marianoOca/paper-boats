@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useNetStore } from "../../game/state/netStore";
 import { useLobbyStore, selectIsHost, selectMe } from "../../game/state/lobbyStore";
 import type { PlayerMeta } from "../../game/net/protocol";
+import { FONT_MONO, TEXT_SHADOW, PANEL, pirateBtn } from "../../lib/uiStyles";
 
 function medal(rank?: number) {
   if (rank === 1) return "🥇";
@@ -50,7 +51,7 @@ export function Leaderboard() {
         justifyContent: "center",
         gap: reveal ? 28 : 0,
         background: "rgba(7,20,28,0.78)",
-        fontFamily: "ui-monospace, monospace",
+        fontFamily: FONT_MONO,
         color: "#f3e2bf",
         padding: 20,
       }}
@@ -78,15 +79,11 @@ export function Leaderboard() {
       {/* your result card */}
       <div
         style={{
-          background: "var(--parchment)",
-          color: "var(--ink)",
-          border: "4px solid var(--wood)",
-          borderRadius: 10,
+          ...PANEL,
           padding: reveal ? "20px 26px" : "40px 60px",
           textAlign: "center",
           transition: "all 0.6s cubic-bezier(.2,.8,.2,1)",
           transform: reveal ? "scale(0.92)" : "scale(1.1)",
-          boxShadow: "0 12px 0 rgba(0,0,0,0.3)",
         }}
       >
         <div style={{ fontSize: reveal ? 16 : 22, opacity: 0.7 }}>YOU FINISHED</div>
@@ -108,7 +105,7 @@ export function Leaderboard() {
           pointerEvents: reveal ? "auto" : "none",
         }}
       >
-        <h2 style={{ marginBottom: 10, textShadow: "2px 2px 0 #000" }}>⚓ Leaderboard</h2>
+        <h2 style={{ marginBottom: 10, textShadow: TEXT_SHADOW }}>⚓ Leaderboard</h2>
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           {ranked.map((p) => (
             <div
@@ -150,15 +147,5 @@ export function Leaderboard() {
   );
 }
 
-function lbBtn(bg: string): React.CSSProperties {
-  return {
-    flex: 1,
-    background: bg,
-    color: "#f3e2bf",
-    border: "2px solid rgba(0,0,0,0.3)",
-    borderRadius: 6,
-    padding: "10px 14px",
-    fontWeight: 700,
-    fontFamily: "inherit",
-  };
-}
+const lbBtn = (bg: string): React.CSSProperties =>
+  pirateBtn(bg, { flex: 1, padding: "10px 14px", fontFamily: "inherit" });

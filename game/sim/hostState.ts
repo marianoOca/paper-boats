@@ -1,6 +1,6 @@
 import { Euler, Quaternion, Vector3 } from "three";
 import type { RapierRigidBody } from "@react-three/rapier";
-import { CANNON, RAM, START_LIVES } from "../../lib/constants";
+import { BOAT, CANNON, RAM, START_LIVES } from "../../lib/constants";
 import { SUNK_TAUNTS, KILL_TAUNTS } from "../../lib/taunts";
 import { BARREL_LEN } from "./aim";
 import { classifyRam } from "./physicsHelpers";
@@ -46,6 +46,10 @@ const _aim = new Quaternion();
 const _v = new Vector3();
 const _dir = new Vector3();
 const _up = new Vector3(0, 1, 0);
+
+// Horizontal knockback along `dir` (sign flips for the rammer vs the victim).
+const knock = (b: RapierRigidBody, dir: Vector3, mag: number, sign: number) =>
+  b.applyImpulse({ x: sign * dir.x * mag, y: 0, z: sign * dir.z * mag }, true);
 
 class HostState {
   bodies = new Map<string, RapierRigidBody>();
@@ -134,7 +138,7 @@ class HostState {
     ];
     const ballId = `b${this.ballSeq++}`;
     this.pendingSpawns.push({ id: ballId, ownerId: id, origin: [ox, oy, oz], vel });
-    const m = body.mass() || 1.5;
+    const m = body.mass() || BOAT.mass;
     body.applyImpulse(
       { x: -_dir.x * CANNON.recoilImpulse * m, y: 0, z: -_dir.z * CANNON.recoilImpulse * m },
       true
@@ -157,7 +161,7 @@ class HostState {
 
     const body = this.bodies.get(victimId);
     if (body) {
-      const m = body.mass() || 1.5;
+      const m = body.mass() || BOAT.mass;
       const k = (kind === "ball" ? CANNON.hitImpulse : RAM.victimImpulse) * m;
       body.applyImpulse({ x: push.x * k, y: 0.5 * k, z: push.z * k }, true);
       body.applyTorqueImpulse(
@@ -203,33 +207,33 @@ class HostState {
     const { dir, aFront, bFront } = classifyRam(A, B); // dir: a -> b
     const ra = this.ensure(aId);
     const rb = this.ensure(bId);
-    const mA = A.mass() || 1.5;
-    const mB = B.mass() || 1.5;
+    const mA = A.mass() || BOAT.mass;
+    const mB = B.mass() || BOAT.mass;
 
     if (aFront && bFront) {
       // both fronts = safe zone: bounce apart, no damage
-      A.applyImpulse({ x: -dir.x * RAM.knockback * mA, y: 0, z: -dir.z * RAM.knockback * mA }, true);
-      B.applyImpulse({ x: dir.x * RAM.knockback * mB, y: 0, z: dir.z * RAM.knockback * mB }, true);
+      knock(A, dir, RAM.knockback * mA, -1);
+      knock(B, dir, RAM.knockback * mB, 1);
       ra.ramCdUntil = now + RAM.cooldownMs;
       rb.ramCdUntil = now + RAM.cooldownMs;
       return;
     }
     if (aFront && !bFront) {
       if (now > ra.ramCdUntil) {
-        A.applyImpulse({ x: -dir.x * RAM.knockback * mA, y: 0, z: -dir.z * RAM.knockback * mA }, true);
+        knock(A, dir, RAM.knockback * mA, -1);
         ra.ramCdUntil = now + RAM.cooldownMs;
       }
       this.damage(bId, aId, "ram", dir);
     } else if (bFront && !aFront) {
       if (now > rb.ramCdUntil) {
-        B.applyImpulse({ x: dir.x * RAM.knockback * mB, y: 0, z: dir.z * RAM.knockback * mB }, true);
+        knock(B, dir, RAM.knockback * mB, 1);
         rb.ramCdUntil = now + RAM.cooldownMs;
       }
       this.damage(aId, bId, "ram", dir.clone().negate());
     } else {
       // side/side glance: tiny separation, no damage
-      A.applyImpulse({ x: -dir.x * 2 * mA, y: 0, z: -dir.z * 2 * mA }, true);
-      B.applyImpulse({ x: dir.x * 2 * mB, y: 0, z: dir.z * 2 * mB }, true);
+      knock(A, dir, 2 * mA, -1);
+      knock(B, dir, 2 * mB, 1);
     }
   }
 

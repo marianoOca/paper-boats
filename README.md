@@ -1,6 +1,6 @@
 # ⚓ Paper Armada
 
-Online multiplayer paper-boat cannon battle. Up to 12 players, momentum sailing,
+Online multiplayer paper-boat cannon battle. Up to 15 players, momentum sailing,
 cannon + ramming combat, a rolling sea, and a pixelated 3D look. Lobby → 3-2-1
 countdown → match → leaderboard.
 

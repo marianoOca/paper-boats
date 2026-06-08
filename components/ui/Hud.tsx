@@ -5,6 +5,7 @@ import { useInputStore } from "../../game/state/inputStore";
 import { useTauntStore } from "../../game/state/tauntStore";
 import { MODE_CANNON } from "../../game/net/protocol";
 import { CANNON, COUNTDOWN_MS } from "../../lib/constants";
+import { FONT_MONO, TEXT_SHADOW } from "../../lib/uiStyles";
 import { clamp } from "../../lib/math";
 import { useTick } from "./useTick";
 
@@ -78,10 +79,10 @@ export function Hud() {
     timeStr = fmt(Math.max(0, (end - serverNow()) / 1000));
   }
 
-  const txt: React.CSSProperties = { textShadow: "2px 2px 0 #000" };
+  const txt: React.CSSProperties = { textShadow: TEXT_SHADOW };
 
   return (
-    <div style={{ position: "fixed", inset: 0, pointerEvents: "none", fontFamily: "ui-monospace, monospace" }}>
+    <div style={{ position: "fixed", inset: 0, pointerEvents: "none", fontFamily: FONT_MONO }}>
       {/* top bar */}
       <div style={{ position: "absolute", top: 12, left: 0, right: 0, display: "flex", justifyContent: "center", gap: 24, ...txt }}>
         <span style={{ fontSize: 26, fontWeight: 700 }}>⏱ {timeStr}</span>
