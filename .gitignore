@@ -1,0 +1,8 @@
+node_modules
+.next
+out
+.env*.local
+.partykit
+.DS_Store
+*.tsbuildinfo
+next-env.d.ts

@@ -1,0 +1,35 @@
+{
+  "name": "paper-armada",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently -n next,party -c blue,magenta \"next dev\" \"partykit dev\"",
+    "next": "next dev",
+    "party": "partykit dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "deploy:party": "partykit deploy"
+  },
+  "dependencies": {
+    "@react-three/drei": "^9.114.3",
+    "@react-three/fiber": "^8.17.10",
+    "@react-three/rapier": "^1.5.0",
+    "next": "^14.2.35",
+    "partysocket": "^1.0.2",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "three": "^0.169.0",
+    "zustand": "^4.5.5"
+  },
+  "devDependencies": {
+    "@types/node": "^20.16.11",
+    "@types/react": "^18.3.11",
+    "@types/react-dom": "^18.3.0",
+    "@types/three": "^0.169.0",
+    "concurrently": "^9.0.1",
+    "partykit": "^0.0.111",
+    "typescript": "^5.6.3"
+  }
+}

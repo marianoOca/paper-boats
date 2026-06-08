@@ -1,0 +1,17 @@
+export const clamp = (v: number, lo: number, hi: number) =>
+  v < lo ? lo : v > hi ? hi : v;
+
+export const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+
+export const deg = (d: number) => (d * Math.PI) / 180;
+
+export const damp = (current: number, target: number, lambda: number, dt: number) =>
+  lerp(current, target, 1 - Math.exp(-lambda * dt));
+
+// short, url-safe room code
+export function makeRoomCode(rand: () => number = Math.random): string {
+  const alphabet = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+  let s = "";
+  for (let i = 0; i < 4; i++) s += alphabet[Math.floor(rand() * alphabet.length)];
+  return s;
+}

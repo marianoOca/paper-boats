@@ -1,0 +1,55 @@
+:root {
+  --wood-dark: #3b2412;
+  --wood: #5b3a1a;
+  --wood-light: #8a5a2a;
+  --parchment: #f3e2bf;
+  --parchment-dark: #d8c191;
+  --ink: #2a1a0a;
+  --sea: #2a6b8f;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+  background: #0b1d28;
+  color: var(--parchment);
+  font-family: ui-monospace, "Courier New", monospace;
+  -webkit-font-smoothing: none;
+  font-smooth: never;
+  user-select: none;
+}
+
+#__next,
+main {
+  height: 100%;
+}
+
+/* The 3D canvas renders at low internal resolution and is upscaled with
+   nearest-neighbour → chunky retro pixels, no postprocessing dependency. */
+canvas.pixelated {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+/* Minecraft-style splash text: tilted yellow line that pulses with a sine bounce. */
+@keyframes splash-pulse {
+  0%,
+  100% {
+    transform: rotate(-9deg) scale(1);
+  }
+  50% {
+    transform: rotate(-9deg) scale(1.07);
+  }
+}
