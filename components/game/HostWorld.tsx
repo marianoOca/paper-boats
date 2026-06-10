@@ -1,9 +1,10 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Physics, RigidBody, CuboidCollider } from "@react-three/rapier";
-import { useFrame } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
 import { PhysicsBoat } from "./PhysicsBoat";
 import { HostBall } from "./HostBall";
+import { BoatFoam } from "./boatFoam";
 import { hostState, type BallSpec } from "../../game/sim/hostState";
 import { applyBoatControl, applyBuoyancy, applyRighting } from "../../game/sim/physicsHelpers";
 import { hostInputs, NEUTRAL_INPUT, type BoatInput } from "../../game/net/hostInputs";
@@ -74,12 +75,13 @@ interface DirectorState {
   endDeferAt: number;
 }
 
-function HostLoop({ onSpawn }: { onSpawn: (s: BallSpec) => void }) {
+function HostLoop({ onSpawn, foam }: { onSpawn: (s: BallSpec) => void; foam: BoatFoam }) {
   const acc = useRef({ snap: 0, stats: 0 });
   const dir = useRef<DirectorState>({ playingSent: false, endSent: false, matchEndAt: 0, endDeferAt: 0 });
 
   useFrame((_, dtRaw) => {
     const dt = Math.min(dtRaw, 0.05);
+    const now = performance.now() / 1000;
     const send = useNetStore.getState().send;
     const sNow = useNetStore.getState().serverNow();
     const lobby = useLobbyStore.getState();
@@ -98,6 +100,7 @@ function HostLoop({ onSpawn }: { onSpawn: (s: BallSpec) => void }) {
       const input = p.id === myId ? readSelfInput() : hostInputs.get(p.id) ?? NEUTRAL_INPUT;
       const rt = hostState.ensure(p.id);
       const t = body.translation();
+      const r = body.rotation();
 
       // Edge arena: boats that drive past the rim fall off the plate and sink.
       if (arenaMode === "edge") {
@@ -111,8 +114,8 @@ function HostLoop({ onSpawn }: { onSpawn: (s: BallSpec) => void }) {
         applyBoatControl(body, input, dt);
         hostState.tryFire(p.id, input);
       }
+      foam.update(p.id, t.x, t.y, t.z, r.x, r.y, r.z, r.w, rt.alive, dt, now);
       if (p.id === myId) {
-        const r = body.rotation();
         localBoat.present = true;
         localBoat.x = t.x;
         localBoat.y = t.y;
@@ -195,6 +198,9 @@ export function HostWorld() {
   const myId = useLobbyStore((s) => s.myId);
   const arenaMode = useLobbyStore((s) => s.settings.arenaMode);
   const taunts = useTauntStore((s) => s.taunts);
+  const { scene } = useThree();
+  const foam = useRef<BoatFoam | null>(null);
+  if (!foam.current) foam.current = new BoatFoam(scene);
 
   // Reset during render (before child RigidBody ref callbacks register bodies);
   // an effect here would run AFTER children mount and wipe their registrations.
@@ -205,6 +211,8 @@ export function HostWorld() {
     hostState.reset();
   }
   useEffect(() => () => hostState.reset(), []);
+  useEffect(() => { foam.current!.sync(players.map((p) => p.id)); }, [players]);
+  useEffect(() => () => foam.current?.dispose(), []);
 
   const onSpawn = useCallback((s: BallSpec) => setBalls((b) => [...b, s]), []);
   const removeBall = useCallback((id: string) => setBalls((b) => b.filter((x) => x.id !== id)), []);
@@ -226,7 +234,7 @@ export function HostWorld() {
       {balls.map((b) => (
         <HostBall key={b.id} spec={b} onDone={removeBall} />
       ))}
-      <HostLoop onSpawn={onSpawn} />
+      <HostLoop onSpawn={onSpawn} foam={foam.current} />
     </Physics>
   );
 }

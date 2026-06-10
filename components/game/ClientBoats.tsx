@@ -1,13 +1,15 @@
 "use client";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import * as THREE from "three";
-import { useFrame } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
 import { Boat } from "./Boat";
 import { sampleWorld } from "../../game/state/gameStore";
 import { useLobbyStore } from "../../game/state/lobbyStore";
 import { useTauntStore } from "../../game/state/tauntStore";
 import { localBoat } from "../../game/state/localBoat";
 import { CANNON } from "../../lib/constants";
+import { FLAG_ALIVE } from "../../game/net/protocol";
+import { BoatFoam } from "./boatFoam";
 
 const BALL_POOL = 40;
 
@@ -18,9 +20,18 @@ export function ClientBoats() {
   const groups = useRef(new Map<string, THREE.Group>());
   const balls = useRef<(THREE.Mesh | null)[]>([]);
   const cannonRefs = useRef(new Map<string, THREE.Group>());
+  const { scene } = useThree();
+  const foam = useRef<BoatFoam | null>(null);
+  if (!foam.current) foam.current = new BoatFoam(scene);
 
-  useFrame(() => {
+  useEffect(() => {
+    foam.current!.sync(players.map((p) => p.id));
+  }, [players]);
+  useEffect(() => () => foam.current?.dispose(), []);
+
+  useFrame((_, dt) => {
     const sample = sampleWorld(performance.now());
+    const now = performance.now() / 1000;
     for (const [id, g] of groups.current) {
       const e = sample.ents.get(id);
       if (e) {
@@ -39,6 +50,9 @@ export function ClientBoats() {
         }
         const cr = cannonRefs.current.get(id);
         if (cr && id !== myId) cr.rotation.y = e.ay + Math.PI;
+
+        foam.current!.update(id, e.x, e.y, e.z, e.qx, e.qy, e.qz, e.qw,
+          (e.flags & FLAG_ALIVE) !== 0, dt, now);
       } else {
         g.visible = false;
       }
