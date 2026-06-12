@@ -72,50 +72,69 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 ```
 app/
-  page.tsx                  Landing: name entry → /room/GAME
-  layout.tsx
+  page.tsx                  Renders <Landing>: name entry → /room/GAME
+  layout.tsx                Root: mounts OrientationGate + FullscreenButton globally
   globals.css
-  room/[code]/page.tsx      Room page: phase-switches between Lobby / Game / Leaderboard
+  icon.png                  Favicon / app icon
+  room/[code]/page.tsx      Room page: phase-switches Landing / Lobby / Game / Leaderboard; mounts TouchControls on touch devices
 
 components/
+  Heart.tsx                 Heart SVG used in HUD for lives
   game/
     Boat.tsx                3D boat mesh (color prop)
+    Bucket.tsx              Static bucket arena wall (cylinder collider + mesh)
+    CameraRig.tsx           Spring-follow camera rig (third-person ↔ cannon modes)
+    Cannon.tsx              Cannon mesh + aim/fire UI (local player); exports MUZZLE_TIP_Z
     ClientBoats.tsx         Renders remote boats from network snapshots
+    EventFX.tsx             Hit flash / screen shake / visual event effects
     GameCanvas.tsx          R3F canvas root
+    HostBall.tsx            Host-only: cannonball physics body + mesh
     HostWorld.tsx           Host-only: runs physics sim, streams snaps
-    LocalCannon.tsx         Local player cannon aim/fire UI
-    Ocean.tsx               Ocean mesh
+    MuzzleFlash.tsx         Local-player muzzle flash glued to cannon barrel tip
+    Ocean.tsx               Ocean mesh (Gerstner vertex displacement)
     PhysicsBoat.tsx         Rapier physics body (color prop)
     Scene.tsx               Scene graph
-    TrajectoryPreview.tsx   Cannon trajectory arc
+    TrajectoryPreview.tsx   Cannon trajectory arc preview
+    Waterfall.tsx           Waterfall/overflow visual at bucket edge
   ui/
     Countdown.tsx           Pre-match countdown overlay
+    FullscreenButton.tsx    Mobile-only fullscreen toggle (top-right, global)
     Hud.tsx                 In-match HUD (lives, fire state)
+    Landing.tsx             Name-entry splash screen
     Leaderboard.tsx         End-match ranking screen
-    Lobby.tsx               Waiting room: player list, color picker, host start button
+    Lobby.tsx               Waiting room: player list, color picker, host start button + settings
+    OrientationGate.tsx     Full-screen portrait block for phones (auto-dismiss on rotate)
+    PixelIcons.tsx          Pixel-art SVG icon renderer (anchor, boat, cannon, phone, …)
+    TouchControls.tsx       On-screen dual-stick touch controls (touch devices only)
+    useDevice.ts            Touch-capability + portrait/landscape media-query hook
     useTick.ts              RAF tick hook
 
 game/
   input/useGameInput.ts     Keyboard/mouse → inputStore
   net/
-    hostInputs.ts           Latest input per player (host side)
-    protocol.ts             Wire types: ClientMsg, ServerMsg, PlayerMeta, Phase
+    hostInputs.ts           Latest input per player (host side); BoatInput runtime shape
+    protocol.ts             JSON wire types: ClientMsg, ServerMsg, PlayerMeta, Phase (snap/input are binary, see lib/wire.ts)
     useConnection.ts        PartySocket lifecycle, dispatches to stores
   sim/
     aim.ts                  Cannon aim math
     hostState.ts            Host simulation state machine
     physicsHelpers.ts       Rapier helpers
   state/
-    gameStore.ts            Zustand: snaps, events (Zustand)
+    fx.ts                   FX event store (hit flashes, screen shake triggers)
+    gameStore.ts            Zustand: snaps, events
     inputStore.ts           Zustand: local input frame
     lobbyStore.ts           Zustand: players, phase, settings, myId
     localBoat.ts            Derived local boat state
     netStore.ts             Zustand: socket ref + send helper
+    tauntStore.ts           Zustand: taunt message state
 
 lib/
-  constants.ts              BOAT_COLORS, MAX_PLAYERS, MIN_PLAYERS_TO_START, START_LIVES, TIMER_OPTIONS
-  math.ts                   makeRoomCode, vectors
-  waves.ts                  Ocean wave math
+  constants.ts              Tick/snapshot/input rates, MAX_PLAYERS, lives, arena, BOAT/RAM/CANNON tunables, BOAT_COLORS, TIMER_OPTIONS
+  math.ts                   makeRoomCode, vectors, clamp, deg
+  taunts.ts                 Taunt strings/data
+  uiStyles.ts               Shared UI style constants
+  waves.ts                  Ocean wave math (Gerstner height(x,z,t) — shared by sim + shader)
+  wire.ts                   Binary codec for the high-frequency snap + input frames (JSON for everything else)
 
 partykit/
   server.ts                 PartyKit server: player registry, phase FSM, relay
@@ -127,6 +146,6 @@ partykit.json               PartyKit project config
 - **Join:** client connects → server assigns first free color + `ready:true` → client sends `join{name}` → server broadcasts `room`
 - **Color change:** client sends `setColor` → server validates (free?) → broadcasts `room` (real-time for all)
 - **Start:** host sends `start` → server sets phase `countdown` → broadcasts → HostWorld begins sim
-- **Simulation:** HostWorld sends `snap`/`ev` → server rebroadcasts to all clients → ClientBoats interpolates
-- **Input:** clients send `in` → server relays to host connection → hostInputs map → next sim tick
+- **Simulation:** HostWorld sends binary `snap` (lib/wire.ts) + `ev` → server rebroadcasts to all clients → ClientBoats interpolates
+- **Input:** clients send binary input frames (lib/wire.ts) → server relays to host connection → hostInputs map → next sim tick
 - **Stats:** HostWorld sends `stats`/`phase` → server folds into PlayerMeta → broadcasts `room`

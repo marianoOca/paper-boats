@@ -4,17 +4,19 @@ import { useRouter } from "next/navigation";
 import { useNetStore } from "../../game/state/netStore";
 import { useLobbyStore, selectIsHost, selectMe } from "../../game/state/lobbyStore";
 import type { PlayerMeta } from "../../game/net/protocol";
-import { FONT_MONO, TEXT_SHADOW, PANEL, pirateBtn } from "../../lib/uiStyles";
+import { FONT_MONO, TEXT_SHADOW, PANEL, pirateBtn, WOOD_ACTIVE } from "../../lib/uiStyles";
+import { PixelAnchor, PixelHourglass, PixelMedal } from "./PixelIcons";
 
+const MEDAL_COLORS: Record<number, string> = { 1: "#ffd700", 2: "#c0c0c0", 3: "#cd7f32" };
 function medal(rank?: number) {
-  if (rank === 1) return "🥇";
-  if (rank === 2) return "🥈";
-  if (rank === 3) return "🥉";
   return `#${rank ?? "-"}`;
+}
+function medalColor(rank?: number) {
+  return rank ? (MEDAL_COLORS[rank] ?? "inherit") : "inherit";
 }
 
 function status(p: PlayerMeta) {
-  return p.alive ? `afloat · ${p.lives}♥` : "sunk";
+  return p.alive ? `afloat · ${p.lives} hp` : "sunk";
 }
 
 export function Leaderboard() {
@@ -73,7 +75,7 @@ export function Leaderboard() {
           }}
         >
           <div style={{ fontSize: 22, letterSpacing: 4, opacity: 0.7, marginBottom: 10 }}>MATCH OVER</div>
-          <div style={{ fontSize: 72, fontWeight: 900, textShadow: "0 0 40px #f3e2bf88" }}>⏱ TIME'S UP!</div>
+          <div style={{ fontSize: 72, fontWeight: 900, textShadow: "0 0 40px #f3e2bf88" }}><PixelHourglass size={56} /> TIME'S UP!</div>
         </div>
       )}
       {/* your result card */}
@@ -87,7 +89,9 @@ export function Leaderboard() {
         }}
       >
         <div style={{ fontSize: reveal ? 16 : 22, opacity: 0.7 }}>YOU FINISHED</div>
-        <div style={{ fontSize: reveal ? 64 : 92, fontWeight: 900 }}>{medal(me?.rank)}</div>
+        <div style={{ fontSize: reveal ? 64 : 92, fontWeight: 900, color: medalColor(me?.rank), lineHeight: 1 }}>
+          {me?.rank && me.rank <= 3 ? <PixelMedal rank={me.rank} size={reveal ? 64 : 92} /> : medal(me?.rank)}
+        </div>
         <div style={{ fontSize: 20, fontWeight: 700 }}>{me?.name}</div>
         <div style={{ marginTop: 6, opacity: 0.8 }}>
           {me ? status(me) : ""} · {me?.damageDealt ?? 0} hits
@@ -105,7 +109,7 @@ export function Leaderboard() {
           pointerEvents: reveal ? "auto" : "none",
         }}
       >
-        <h2 style={{ marginBottom: 10, textShadow: TEXT_SHADOW }}>⚓ Leaderboard</h2>
+        <h2 style={{ marginBottom: 10, textShadow: TEXT_SHADOW }}><PixelAnchor size={18} /> Leaderboard</h2>
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           {ranked.map((p) => (
             <div
@@ -121,7 +125,9 @@ export function Leaderboard() {
                 borderRadius: 6,
               }}
             >
-              <span style={{ width: 34, fontWeight: 800 }}>{medal(p.rank)}</span>
+              <span style={{ width: 34, fontWeight: 800, color: medalColor(p.rank), display: "flex", justifyContent: "center" }}>
+                {p.rank && p.rank <= 3 ? <PixelMedal rank={p.rank} size={22} /> : medal(p.rank)}
+              </span>
               <span style={{ width: 16, height: 16, background: p.color, borderRadius: 3, border: "1px solid #0003" }} />
               <span style={{ flex: 1, fontWeight: 700 }}>{p.name}</span>
               <span style={{ opacity: 0.8 }}>{status(p)}</span>
@@ -132,7 +138,7 @@ export function Leaderboard() {
 
         <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
           {isHost ? (
-            <button onClick={() => send({ t: "rematch" })} style={lbBtn("#2e7d32")}>
+            <button onClick={() => send({ t: "rematch" })} style={lbBtn(WOOD_ACTIVE)}>
               ↻ Play again
             </button>
           ) : (

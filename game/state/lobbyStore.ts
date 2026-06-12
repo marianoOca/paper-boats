@@ -46,3 +46,10 @@ export const useLobbyStore = create<LobbyState>((set) => ({
 export const selectMe = (s: LobbyState): PlayerMeta | undefined =>
   s.players.find((p) => p.id === s.myId);
 export const selectIsHost = (s: LobbyState) => s.myId !== "" && s.myId === s.hostId;
+
+/** idx -> player id, for decoding binary snaps. Call imperatively (rebuilds a Map). */
+export const idxToId = (): (string | undefined)[] => {
+  const map: (string | undefined)[] = [];
+  for (const p of useLobbyStore.getState().players) map[p.idx] = p.id;
+  return map;
+};

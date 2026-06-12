@@ -7,7 +7,6 @@ import { renderState } from "./fx";
 
 interface Snap {
   recvAt: number;
-  tick: number;
   simTime: number;
   ents: EntTuple[];
   balls: BallTuple[];
@@ -42,6 +41,10 @@ interface GameState {
 }
 
 const MAX_SNAPS = 16;
+// Balls bypass the boat interp buffer: they're fast, straight, short-lived, so we
+// extrapolate the newest snap forward by velocity for minimum shoot-to-screen lag.
+// Capped so a stalled stream (or a ball the host already despawned) can't overshoot far.
+const BALL_EXTRAP_MS = 80;
 
 export const useGameStore = create<GameState>((set, get) => ({
   snaps: [],
@@ -120,12 +123,23 @@ export function sampleWorld(now: number): Sample {
     }
   }
 
-  const bBalls = new Map(b.balls.map((x) => [x[0], x] as const));
-  for (const ba of a.balls) {
-    const bb = bBalls.get(ba[0]) ?? ba;
-    balls.set(ba[0], [lerp(ba[1], bb[1], alpha), lerp(ba[2], bb[2], alpha), lerp(ba[3], bb[3], alpha)]);
+  // balls: extrapolate the newest snap by velocity (no interp buffer) for low latency
+  const newest = snaps[snaps.length - 1];
+  const prev = snaps.length >= 2 ? snaps[snaps.length - 2] : null;
+  const dts = prev ? newest.simTime - prev.simTime : 0;
+  const extrap = Math.min(BALL_EXTRAP_MS, Math.max(0, now - newest.recvAt)) / 1000;
+  const prevBalls = prev ? new Map(prev.balls.map((x) => [x[0], x] as const)) : null;
+  for (const nb of newest.balls) {
+    const pb = prevBalls?.get(nb[0]);
+    if (pb && dts > 0) {
+      const vx = (nb[1] - pb[1]) / dts;
+      const vy = (nb[2] - pb[2]) / dts;
+      const vz = (nb[3] - pb[3]) / dts;
+      balls.set(nb[0], [nb[1] + vx * extrap, nb[2] + vy * extrap, nb[3] + vz * extrap]);
+    } else {
+      balls.set(nb[0], [nb[1], nb[2], nb[3]]);
+    }
   }
-  for (const bb of b.balls) if (!balls.has(bb[0])) balls.set(bb[0], [bb[1], bb[2], bb[3]]);
 
   const time = lerp(a.simTime, b.simTime, alpha);
   renderState.simTime = time;

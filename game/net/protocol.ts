@@ -20,6 +20,7 @@ export interface RoomSettings {
 
 export interface PlayerMeta {
   id: string;
+  idx: number; // stable wire slot 0..MAX_PLAYERS-1 (binary snap/input addressing)
   name: string;
   color: string;
   ready: boolean;
@@ -59,17 +60,11 @@ export interface StatPatch {
   damageDealt: number;
 }
 
-export interface InputPayload {
-  seq: number;
-  throttle: number; // -1..1
-  steer: number; // -1..1
-  mode: Mode;
-  aimYaw: number; // radians, relative to boat heading
-  aimPitch: number; // radians
-  fireSeq: number; // increments on each click; host fires on rising edge
-}
+// Input is sent as a binary frame (see lib/wire.ts), not JSON. The runtime
+// shape lives in hostInputs.ts as `BoatInput`.
 
 // ---- client -> server ----
+// `snap` and `in` are binary (lib/wire.ts) and are not part of this union.
 export type ClientMsg =
   | { t: "join"; name: string }
   | { t: "setColor"; color: string }
@@ -78,14 +73,13 @@ export type ClientMsg =
   | { t: "setLives"; startLives: number }
   | { t: "start" }
   | { t: "rematch" }
-  | ({ t: "in" } & InputPayload)
-  | { t: "snap"; tick: number; simTime: number; ents: EntTuple[]; balls: BallTuple[] }
   | { t: "ev"; ev: GameEvent }
   | { t: "stats"; players: StatPatch[] }
   | { t: "phase"; phase: Phase; endReason?: "timeout" | "combat" }
   | { t: "ping"; ts: number };
 
 // ---- server -> client ----
+// `snap` (-> clients) and `in` (-> host) are binary (lib/wire.ts).
 export type ServerMsg =
   | { t: "welcome"; id: string }
   | {
@@ -97,8 +91,6 @@ export type ServerMsg =
       startEpoch: number | null; // server time (ms) when countdown began
       endReason: "timeout" | "combat" | null;
     }
-  | ({ t: "in"; from: string } & InputPayload)
-  | { t: "snap"; tick: number; simTime: number; ents: EntTuple[]; balls: BallTuple[] }
   | { t: "ev"; ev: GameEvent }
   | { t: "pong"; ts: number; server: number };
 

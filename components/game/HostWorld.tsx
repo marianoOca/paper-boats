@@ -22,7 +22,8 @@ import {
   WALL_HEIGHT,
   WATER_LEVEL,
 } from "../../lib/constants";
-import { FLAG_ALIVE, type BallTuple, type EntTuple } from "../../game/net/protocol";
+import { FLAG_ALIVE } from "../../game/net/protocol";
+import { encodeSnap, type SnapBall, type SnapEnt } from "../../lib/wire";
 
 function spawn(index: number, total: number): { pos: [number, number, number]; yaw: number } {
   const a = (index / Math.max(1, total)) * Math.PI * 2;
@@ -130,23 +131,34 @@ function HostLoop({ onSpawn }: { onSpawn: (s: BallSpec) => void }) {
       for (const s of list) onSpawn(s);
     }
 
-    // snapshot broadcast
+    // snapshot broadcast (binary; see lib/wire.ts)
     acc.current.snap += dt;
     if (acc.current.snap >= 1 / SNAPSHOT_HZ) {
       acc.current.snap = 0;
-      const ents: EntTuple[] = [];
+      const idxOf = new Map(players.map((p) => [p.id, p.idx]));
+      const selfAimYaw = useInputStore.getState().aimYaw; // host doesn't round-trip its own input
+      const ents: SnapEnt[] = [];
       for (const [id, body] of hostState.bodies) {
+        const idx = idxOf.get(id);
+        if (idx === undefined) continue;
         const t = body.translation();
         const r = body.rotation();
         const rt = hostState.rt.get(id);
-        ents.push([id, t.x, t.y, t.z, r.x, r.y, r.z, r.w, rt ? rt.lives : 3, rt?.alive ? FLAG_ALIVE : 0, hostInputs.get(id)?.aimYaw ?? 0]);
+        ents.push({
+          idx,
+          x: t.x, y: t.y, z: t.z,
+          qx: r.x, qy: r.y, qz: r.z, qw: r.w,
+          lives: rt ? rt.lives : 3,
+          flags: rt?.alive ? FLAG_ALIVE : 0,
+          aimYaw: id === myId ? selfAimYaw : hostInputs.get(id)?.aimYaw ?? 0,
+        });
       }
-      const balls: BallTuple[] = [];
+      const balls: SnapBall[] = [];
       for (const [id, b] of hostState.ballBodies) {
         const t = b.translation();
-        balls.push([id, t.x, t.y, t.z]);
+        balls.push({ idx: parseInt(id.slice(1), 10) & 0xff, x: t.x, y: t.y, z: t.z });
       }
-      send({ t: "snap", tick: hostState.tick, simTime: hostState.simTime, ents, balls });
+      useNetStore.getState().sendRaw(encodeSnap(Math.round(hostState.simTime * 1000), ents, balls));
     }
 
     // authoritative stats

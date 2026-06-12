@@ -6,6 +6,7 @@ import { useNetStore } from "../state/netStore";
 import { MODE_CANNON, MODE_MOVE } from "../net/protocol";
 import { INPUT_HZ, CANNON } from "../../lib/constants";
 import { clamp, deg } from "../../lib/math";
+import { encodeInput } from "../../lib/wire";
 
 const SENS = 0.0024;
 const MAX_AIM_YAW = deg(CANNON.maxAimYaw);
@@ -14,6 +15,10 @@ const MAX_PITCH = deg(CANNON.maxPitchDeg);
 
 export function useGameInput() {
   useEffect(() => {
+    // Touch devices use on-screen controls (TouchControls). Skip the mouse path:
+    // pointer lock is unsupported on mobile, and a synthetic mousedown from a tap
+    // on empty screen would otherwise flip the boat into cannon mode.
+    const coarse = window.matchMedia("(pointer: coarse)").matches;
     const held = new Set<string>();
     const canvas = () => document.querySelector("canvas");
     const locked = () => document.pointerLockElement != null;
@@ -81,7 +86,7 @@ export function useGameInput() {
     };
 
     const onMouseDown = (e: MouseEvent) => {
-      if (!playing()) return;
+      if (coarse || !playing()) return;
       if (isSunk()) {
         tryLock();
         return;
@@ -91,19 +96,13 @@ export function useGameInput() {
       if (cur === MODE_MOVE) {
         switchToCannon();
       } else if (e.button === 0) {
-        const { lastFireAt } = useInputStore.getState();
-        const ready = (performance.now() - lastFireAt) / CANNON.reloadMs >= 1;
-        if (ready) {
-          useInputStore.getState().bumpFire();
-        } else {
-          useInputStore.getState().penaltyReload();
-        }
+        useInputStore.getState().requestFire();
       }
     };
     const onContext = (e: Event) => e.preventDefault();
 
     const onMouseMove = (e: MouseEvent) => {
-      if (!locked() || !playing()) return;
+      if (coarse || !locked() || !playing()) return;
       const s = useInputStore.getState();
       if (s.mode === MODE_CANNON && !isSunk()) {
         useInputStore.setState({
@@ -120,9 +119,14 @@ export function useGameInput() {
       }
     };
 
-    // send + decay loop
-    let seq = 0;
+    // send + decay loop. Binary, send-on-change (idle = zero packets). The host
+    // reads its own input locally, so it never sends `in` over the network.
+    const amHost = () => {
+      const st = useLobbyStore.getState();
+      return st.myId !== "" && st.myId === st.hostId;
+    };
     let last = performance.now();
+    let lastBuf: Uint8Array | null = null;
     const tick = setInterval(() => {
       const now = performance.now();
       const dt = (now - last) / 1000;
@@ -130,20 +134,21 @@ export function useGameInput() {
       const s = useInputStore.getState();
       // look offset decays back to centered when in move mode (not when spectating)
       if (s.mode === MODE_MOVE && !isSunk()) {
-        const k = Math.exp(-2.5 * dt);
+        const k = Math.exp(-1.5 * dt);
         useInputStore.setState({ lookYaw: s.lookYaw * k, lookPitch: s.lookPitch * k, aimYaw: s.aimYaw * k, aimPitch: s.aimPitch * k });
       }
-      if (!playing()) return;
-      useNetStore.getState().send({
-        t: "in",
-        seq: seq++,
-        throttle: s.throttle,
-        steer: s.steer,
-        mode: s.mode,
-        aimYaw: s.aimYaw,
-        aimPitch: s.aimPitch,
-        fireSeq: s.fireSeq,
-      });
+      if (!playing() || amHost()) {
+        lastBuf = null; // re-baseline so the first send of a match always goes out
+        return;
+      }
+      const c = useInputStore.getState();
+      const buf = new Uint8Array(encodeInput({
+        throttle: c.throttle, steer: c.steer, mode: c.mode,
+        aimYaw: c.aimYaw, aimPitch: c.aimPitch, fireSeq: c.fireSeq,
+      }));
+      if (lastBuf && lastBuf.length === buf.length && lastBuf.every((b, i) => b === buf[i])) return;
+      lastBuf = buf;
+      useNetStore.getState().sendRaw(buf.buffer);
     }, 1000 / INPUT_HZ);
 
     let prevPhase = useLobbyStore.getState().phase;

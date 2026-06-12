@@ -4,9 +4,10 @@ import PartySocket from "partysocket";
 import type { ServerMsg } from "./protocol";
 import { json } from "./protocol";
 import { useNetStore } from "../state/netStore";
-import { useLobbyStore } from "../state/lobbyStore";
+import { useLobbyStore, idxToId } from "../state/lobbyStore";
 import { useGameStore } from "../state/gameStore";
 import { hostInputs } from "./hostInputs";
+import { TAG_SNAP, TAG_INPUT, decodeSnap, decodeInput } from "../../lib/wire";
 
 const PARTY_HOST = process.env.NEXT_PUBLIC_PARTYKIT_HOST || "127.0.0.1:1999";
 
@@ -14,11 +15,13 @@ export function useConnection(code: string, profile: { name: string; color?: str
   useEffect(() => {
     if (!code || !profile.name) return;
     const socket = new PartySocket({ host: PARTY_HOST, room: code.toUpperCase() });
+    socket.binaryType = "arraybuffer";
     useNetStore.getState().setSocket(socket);
 
     let pingTimer: ReturnType<typeof setInterval> | undefined;
 
     const onOpen = () => {
+      socket.binaryType = "arraybuffer"; // re-affirm: PartySocket recreates the WS on reconnect
       useLobbyStore.getState().setConnected(true);
       socket.send(json({ t: "join", name: profile.name }));
       if (profile.color) socket.send(json({ t: "setColor", color: profile.color }));
@@ -27,6 +30,19 @@ export function useConnection(code: string, profile: { name: string; color?: str
     };
 
     const onMessage = (e: MessageEvent) => {
+      // binary frames: snap (-> clients) and input (-> host)
+      if (e.data instanceof ArrayBuffer) {
+        const tag = new Uint8Array(e.data, 0, 1)[0];
+        if (tag === TAG_SNAP) {
+          const s = decodeSnap(e.data, idxToId());
+          if (s) useGameStore.getState().pushSnap(s);
+        } else if (tag === TAG_INPUT) {
+          const { idx, ...input } = decodeInput(e.data);
+          const id = idxToId()[idx];
+          if (id) hostInputs.set(id, input);
+        }
+        return;
+      }
       let m: ServerMsg | { t: "full" };
       try {
         m = JSON.parse(e.data);
@@ -47,27 +63,8 @@ export function useConnection(code: string, profile: { name: string; color?: str
             endReason: m.endReason,
           });
           break;
-        case "snap":
-          useGameStore.getState().pushSnap({
-            tick: m.tick,
-            simTime: m.simTime,
-            ents: m.ents,
-            balls: m.balls,
-          });
-          break;
         case "ev":
           useGameStore.getState().pushEvent(m.ev);
-          break;
-        case "in":
-          // relayed to the host only; stash latest input for that player
-          hostInputs.set(m.from, {
-            throttle: m.throttle,
-            steer: m.steer,
-            mode: m.mode,
-            aimYaw: m.aimYaw,
-            aimPitch: m.aimPitch,
-            fireSeq: m.fireSeq,
-          });
           break;
         case "pong": {
           const rtt = Date.now() - m.ts;

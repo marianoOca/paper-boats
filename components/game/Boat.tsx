@@ -4,6 +4,7 @@ import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
 import { Html, useGLTF } from "@react-three/drei";
 import { CannonRig } from "./Cannon";
+import { MuzzleFlash } from "./MuzzleFlash";
 import { useInputStore } from "../../game/state/inputStore";
 import { BOAT, START_LIVES } from "../../lib/constants";
 
@@ -270,7 +271,9 @@ function LocalCannonRig({ position }: { position: [number, number, number] }) {
   });
   return (
     <group position={position}>
-      <CannonRig yawRef={yawRef} elevRef={elevRef} />
+      <CannonRig yawRef={yawRef} elevRef={elevRef}>
+        <MuzzleFlash />
+      </CannonRig>
     </group>
   );
 }

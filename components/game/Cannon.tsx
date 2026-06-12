@@ -189,7 +189,7 @@ function CannonBase() {
 // Cannon + carriage rig. `yaw` rotates the WHOLE rig (base + cannon) together;
 // `elevation` rotates ONLY the cannon about its trunnion axis (the breech-side
 // octagon bolts). Drive these two props to aim/animate.
-export function CannonRig({ elevation = 0, yaw = 0, yawRef, elevRef }: { elevation?: number; yaw?: number; yawRef?: Ref<any>; elevRef?: Ref<any> }) {
+export function CannonRig({ elevation = 0, yaw = 0, yawRef, elevRef, children }: { elevation?: number; yaw?: number; yawRef?: Ref<any>; elevRef?: Ref<any>; children?: React.ReactNode }) {
   return (
     // yaw pivots about the rig origin; we place that origin at the base footprint
     // centre (x=0, z=BASE_CENTER_Z, y=underside) by shifting the contents below.
@@ -200,6 +200,8 @@ export function CannonRig({ elevation = 0, yaw = 0, yawRef, elevRef }: { elevati
         <group ref={elevRef} position={[0, 0, TRUNNION_Z]} rotation={[elevation, 0, 0]}>
           <group position={[0, 0, -TRUNNION_Z]}>
             <Cannon />
+            {/* children share the barrel frame (muzzle tip at +Z = MUZZLE_TIP_Z) */}
+            {children}
           </group>
         </group>
       </group>

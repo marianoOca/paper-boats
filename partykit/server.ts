@@ -6,6 +6,7 @@ import type {
   RoomSettings,
 } from "../game/net/protocol";
 import { BOAT_COLORS, MAX_PLAYERS, MIN_PLAYERS_TO_START, START_LIVES } from "../lib/constants";
+import { TAG_INPUT, TAG_SNAP } from "../lib/wire";
 
 const j = (m: unknown) => JSON.stringify(m);
 
@@ -29,6 +30,7 @@ export default class GameServer implements Party.Server {
     const color = this.firstFreeColor();
     this.players.set(conn.id, {
       id: conn.id,
+      idx: this.firstFreeIdx(),
       name: "",
       color,
       ready: true,
@@ -65,7 +67,12 @@ export default class GameServer implements Party.Server {
   }
 
   // ---- messages -----------------------------------------------------------
-  onMessage(raw: string, sender: Party.Connection) {
+  onMessage(raw: string | ArrayBuffer, sender: Party.Connection) {
+    // binary frames (snap 0x01, input 0x03) bypass JSON parsing entirely
+    if (raw instanceof ArrayBuffer) {
+      this.onBinary(raw, sender);
+      return;
+    }
     let m: ClientMsg;
     try {
       m = JSON.parse(raw);
@@ -125,17 +132,8 @@ export default class GameServer implements Party.Server {
         }
         break;
 
-      // client input -> host only
-      case "in":
-        if (this.hostId) {
-          this.room.getConnection(this.hostId)?.send(
-            j({ ...m, from: sender.id })
-          );
-        }
-        break;
-
-      // host simulation stream -> everyone else (rebroadcast raw)
-      case "snap":
+      // host game events -> everyone else (rebroadcast raw). snap & input are
+      // binary now (see onBinary); only `ev` still rides the JSON path.
       case "ev":
         if (isHost) this.room.broadcast(raw, [sender.id]);
         break;
@@ -174,6 +172,26 @@ export default class GameServer implements Party.Server {
     }
   }
 
+  // binary frames: snap (host -> all), input (client -> host, idx-tagged)
+  onBinary(buf: ArrayBuffer, sender: Party.Connection) {
+    const tag = new Uint8Array(buf, 0, 1)[0];
+    if (tag === TAG_SNAP) {
+      if (sender.id === this.hostId) this.room.broadcast(buf, [sender.id]);
+      return;
+    }
+    if (tag === TAG_INPUT && this.hostId) {
+      const me = this.players.get(sender.id);
+      if (!me) return;
+      // splice the sender's idx in after the tag: [tag, idx, ...payload]
+      const src = new Uint8Array(buf);
+      const out = new Uint8Array(src.length + 1);
+      out[0] = TAG_INPUT;
+      out[1] = me.idx;
+      out.set(src.subarray(1), 2);
+      this.room.getConnection(this.hostId)?.send(out);
+    }
+  }
+
   // ---- helpers ------------------------------------------------------------
   resetToLobby() {
     this.phase = "lobby";
@@ -203,6 +221,13 @@ export default class GameServer implements Party.Server {
   firstFreeColor() {
     const used = new Set([...this.players.values()].map((p) => p.color));
     return BOAT_COLORS.find((c) => !used.has(c)) ?? BOAT_COLORS[0];
+  }
+
+  // stable wire slot, reused after a disconnect; addresses binary snap/input
+  firstFreeIdx() {
+    const used = new Set([...this.players.values()].map((p) => p.idx));
+    for (let i = 0; i < MAX_PLAYERS; i++) if (!used.has(i)) return i;
+    return 0;
   }
 
   // standard competition ranking (ties share a rank: 1,1,3,...)

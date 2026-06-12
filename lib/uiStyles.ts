@@ -5,6 +5,8 @@ import type { CSSProperties } from "react";
 
 export const FONT_MONO = "ui-monospace, monospace";
 export const TEXT_SHADOW = "2px 2px 0 #000";
+export const PIRATE_GOLD = "#d4a84b"; // treasure gold — ready/active/highlight
+export const WOOD_ACTIVE = "#7a5218"; // dark amber — selected toggle state
 
 // Parchment card used by the landing and leaderboard screens.
 export const PANEL: CSSProperties = {
@@ -20,9 +22,10 @@ export const PANEL: CSSProperties = {
 export const pirateBtn = (bg: string, extra?: CSSProperties): CSSProperties => ({
   background: bg,
   color: "#f3e2bf",
-  border: "2px solid rgba(0,0,0,0.3)",
+  border: "2px solid #2a1a0a",
   borderRadius: 6,
   fontWeight: 700,
+  boxShadow: "0 4px 0 rgba(0,0,0,0.4)",
   ...extra,
 });
 

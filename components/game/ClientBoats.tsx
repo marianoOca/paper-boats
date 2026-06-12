@@ -14,6 +14,7 @@ const BALL_POOL = 40;
 export function ClientBoats() {
   const players = useLobbyStore((s) => s.players.filter((p) => p.name));
   const myId = useLobbyStore((s) => s.myId);
+  const startLives = useLobbyStore((s) => s.settings.startLives);
   const taunts = useTauntStore((s) => s.taunts);
   const groups = useRef(new Map<string, THREE.Group>());
   const balls = useRef<(THREE.Mesh | null)[]>([]);
@@ -70,6 +71,7 @@ export function ClientBoats() {
             color={p.color}
             name={p.name}
             lives={p.lives}
+            maxLives={startLives}
             sunk={!p.alive}
             showLabel
             isLocal={p.id === myId}

@@ -2,17 +2,9 @@
 import { useNetStore } from "../../game/state/netStore";
 import { useLobbyStore, selectIsHost, selectMe } from "../../game/state/lobbyStore";
 import { BOAT_COLORS, MIN_PLAYERS_TO_START, TIMER_OPTIONS } from "../../lib/constants";
-import { pirateBtn } from "../../lib/uiStyles";
+import { pirateBtn, PANEL, WOOD_ACTIVE } from "../../lib/uiStyles";
+import { PixelAnchor, PixelCrown } from "./PixelIcons";
 import { Heart } from "../Heart";
-
-const panel: React.CSSProperties = {
-  background: "var(--parchment)",
-  color: "var(--ink)",
-  border: "4px solid var(--wood)",
-  borderRadius: 8,
-  boxShadow: "0 10px 0 rgba(0,0,0,0.25)",
-  padding: 20,
-};
 
 function timerLabel(sec: number | null) {
   if (sec == null) return "No timer";
@@ -41,8 +33,8 @@ export function Lobby() {
         padding: 20,
       }}
     >
-      <div style={{ ...panel, width: "min(680px, 94vw)" }}>
-        <h1 style={{ fontSize: 30, letterSpacing: 1 }}>⚓ PAPER ARMADA</h1>
+      <div style={{ ...PANEL, padding: 20, width: "min(680px, 94vw)" }}>
+        <h1 style={{ fontSize: 30, letterSpacing: 1 }}><PixelAnchor size={26} /> PAPER ARMADA</h1>
 
         <p style={{ margin: "6px 0 16px", opacity: 0.8 }}>
           {players.length} sailor{players.length === 1 ? "" : "s"} aboard
@@ -66,7 +58,7 @@ export function Lobby() {
               <span style={{ fontWeight: 700, flex: 1, overflow: "hidden", textOverflow: "ellipsis" }}>
                 {p.name || "…"}
               </span>
-              {p.isHost && <span title="host">👑</span>}
+              {p.isHost && <PixelCrown size={16} />}
             </div>
           ))}
         </div>
@@ -109,8 +101,8 @@ export function Lobby() {
                 disabled={!isHost}
                 onClick={() => isHost && send({ t: "setLives", startLives: n })}
                 style={{
-                  background: settings.startLives >= n ? "#e6433f" : "#6b4423",
-                  border: "2px solid rgba(0,0,0,0.3)",
+                  background: settings.startLives >= n ? "#e6433f" : "var(--wood)",
+                  border: "2px solid #2a1a0a",
                   borderRadius: 6,
                   padding: "8px 10px",
                   display: "flex",
@@ -118,11 +110,12 @@ export function Lobby() {
                   justifyContent: "center",
                   width: 36,
                   height: 36,
+                  boxShadow: "0 4px 0 rgba(0,0,0,0.4)",
                   opacity: isHost ? 1 : 0.7,
                   cursor: isHost ? "pointer" : "not-allowed",
                 }}
               >
-                <Heart filled={false} />
+                <Heart />
               </button>
             ))}
           </div>
@@ -138,7 +131,7 @@ export function Lobby() {
                   disabled={!isHost}
                   onClick={() => isHost && send({ t: "setTimer", timerSec: sec })}
                   style={{
-                    ...btn(settings.timerSec === sec ? "#2e7d32" : "#6b4423"),
+                    ...btn(settings.timerSec === sec ? WOOD_ACTIVE : "var(--wood)"),
                     opacity: isHost ? 1 : 0.7,
                     cursor: isHost ? "pointer" : "not-allowed",
                   }}
@@ -162,7 +155,7 @@ export function Lobby() {
                   onClick={() => isHost && send({ t: "setArenaMode", arenaMode: mode })}
                   title={mode === "walls" ? "Bounce off the bucket walls" : "Fall off the edge to sink"}
                   style={{
-                    ...btn(settings.arenaMode === mode ? "#2e7d32" : "#6b4423"),
+                    ...btn(settings.arenaMode === mode ? WOOD_ACTIVE : "var(--wood)"),
                     opacity: isHost ? 1 : 0.7,
                     cursor: isHost ? "pointer" : "not-allowed",
                   }}
@@ -179,17 +172,14 @@ export function Lobby() {
             disabled={!isHost || namedCount < MIN_PLAYERS_TO_START}
             onClick={() => isHost && send({ t: "start" })}
             style={{
-              ...btn(namedCount < MIN_PLAYERS_TO_START ? "#888" : "#c0392b"),
+              ...btn(namedCount < MIN_PLAYERS_TO_START ? "#3b2412" : "#c0392b"),
               width: "100%",
               fontSize: 18,
-              cursor:
-                !isHost || namedCount < MIN_PLAYERS_TO_START
-                  ? "not-allowed"
-                  : "pointer",
+              cursor: !isHost || namedCount < MIN_PLAYERS_TO_START ? "not-allowed" : "pointer",
               opacity: isHost ? 1 : 0.7,
             }}
           >
-            ⚔ Start ({namedCount}/{MIN_PLAYERS_TO_START}+)
+            Start ({namedCount}/{MIN_PLAYERS_TO_START}+)
           </button>
         </div>
         {!isHost && (

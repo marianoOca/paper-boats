@@ -8,7 +8,10 @@ import { Lobby } from "../../../components/ui/Lobby";
 import { Hud } from "../../../components/ui/Hud";
 import { Countdown } from "../../../components/ui/Countdown";
 import { Leaderboard } from "../../../components/ui/Leaderboard";
-import { FONT_MONO, INPUT } from "../../../lib/uiStyles";
+import { Landing } from "../../../components/ui/Landing";
+import { TouchControls } from "../../../components/ui/TouchControls";
+import { useDevice } from "../../../components/ui/useDevice";
+import { FONT_MONO } from "../../../lib/uiStyles";
 
 export default function RoomPage({ params }: { params: { code: string } }) {
   const code = (params.code || "").toUpperCase();
@@ -27,13 +30,14 @@ export default function RoomPage({ params }: { params: { code: string } }) {
   const phase = useLobbyStore((s) => s.phase);
   const full = useLobbyStore((s) => s.full);
   const connected = useLobbyStore((s) => s.connected);
+  const { isTouch } = useDevice();
 
   if (!mounted) return null;
 
   if (!name) {
-    return <NameGate onSet={(n) => { sessionStorage.setItem("pa_name", n); setName(n); }} />;
+    return <Landing onPlay={(n) => setName(n)} />;
   }
-  if (full) return <Center>Room is full — 12 sailors aboard ⛵</Center>;
+  if (full) return <Center>Room is full — 12 sailors aboard</Center>;
 
   const inMatch = phase === "countdown" || phase === "playing" || phase === "ended";
 
@@ -42,29 +46,11 @@ export default function RoomPage({ params }: { params: { code: string } }) {
       {inMatch && <GameCanvas />}
       {phase === "lobby" && <Lobby />}
       {(phase === "countdown" || phase === "playing") && <Hud />}
+      {(phase === "countdown" || phase === "playing") && isTouch && <TouchControls />}
       {phase === "countdown" && <Countdown />}
       {phase === "ended" && <Leaderboard />}
       {!connected && <Center>Connecting to room {code}…</Center>}
     </>
-  );
-}
-
-function NameGate({ onSet }: { onSet: (n: string) => void }) {
-  const [v, setV] = useState("");
-  return (
-    <Center>
-      <div style={{ textAlign: "center" }}>
-        <h2 style={{ marginBottom: 12 }}>Enter your name</h2>
-        <input
-          autoFocus
-          value={v}
-          maxLength={16}
-          onChange={(e) => setV(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && v.trim() && onSet(v.trim().slice(0, 16))}
-          style={INPUT}
-        />
-      </div>
-    </Center>
   );
 }
 

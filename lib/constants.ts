@@ -1,9 +1,9 @@
 // Central tunables. Forward direction of a boat is local +Z. Back (cannon) is -Z.
 
 export const TICK_HZ = 60; // host sim step target
-export const SNAPSHOT_HZ = 20; // host broadcast rate
-export const INPUT_HZ = 30; // client input send rate
-export const INTERP_DELAY_MS = 120; // client interpolation buffer depth
+export const SNAPSHOT_HZ = 30; // host broadcast rate (binary snaps, lib/wire.ts)
+export const INPUT_HZ = 30; // client input send-on-change check rate
+export const INTERP_DELAY_MS = 90; // client interpolation buffer depth (~2.7 snaps @30Hz)
 
 export const MAX_PLAYERS = 12;
 export const MIN_PLAYERS_TO_START = 2;
@@ -47,6 +47,8 @@ export const RAM = {
 
 export const CANNON = {
   reloadMs: 2200,
+  windupMs: 500, // delay between click and launch — masks net latency, lets aim settle
+
   ballSpeed: 36,
   ballRadius: 0.32,
   ballMass: 0.6,

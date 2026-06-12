@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import { OrientationGate } from "../components/ui/OrientationGate";
+import { FullscreenButton } from "../components/ui/FullscreenButton";
 
 export const metadata: Metadata = {
   title: "Paper Armada",
@@ -22,6 +24,8 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <main>{children}</main>
+        <OrientationGate />
+        <FullscreenButton />
       </body>
     </html>
   );

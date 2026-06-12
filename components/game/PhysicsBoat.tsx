@@ -76,6 +76,7 @@ export function PhysicsBoat({
         color={player.color}
         name={player.name}
         lives={player.lives}
+        maxLives={hostState.startLives}
         sunk={!player.alive}
         showLabel
         isLocal={player.id === selfId}

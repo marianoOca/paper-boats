@@ -1,10 +1,9 @@
 # ⚓ Paper Armada
 
-Online multiplayer paper-boat cannon battle. Up to 15 players, momentum sailing,
-cannon + ramming combat, a rolling sea, and a pixelated 3D look. Lobby → 3-2-1
-countdown → match → leaderboard.
-
-See [PLAN.md](PLAN.md) for the full architecture.
+Online multiplayer paper-boat cannon battle. Up to 12 players, momentum sailing,
+cannon + ramming combat, a rolling sea, and a pixelated 3D look. Plays on desktop
+(keyboard/mouse) or mobile (on-screen sticks). Lobby → 3-2-1 countdown → match →
+leaderboard.
 
 ## Stack
 
@@ -15,9 +14,24 @@ See [PLAN.md](PLAN.md) for the full architecture.
 - **Host browser** — runs the authoritative Rapier simulation, broadcasts snapshots
 - **Zustand** — client state
 
-The first player to connect is the **host**: their browser runs the single
-authoritative physics sim. Everyone (host included) talks only to the PartyKit
-room, which relays inputs up and world snapshots down.
+### Authority split
+
+Two separate authorities:
+
+- **PartyKit room** = authoritative for meta/lobby state + message relay. Roster, host designation, room settings (timer, arena mode, starting lives), names, colors, ready flags, game phase, final standings. Survives any single browser disconnect.
+- **Host browser** = authoritative for simulation. All boat transforms, cannonballs, collisions, lives, damage. Broadcasts snapshots through the relay.
+
+The first player to connect is the host. Everyone (host included) talks only to the PartyKit room, which relays inputs to the host and world snapshots to all clients (star topology, no P2P).
+
+### Networking protocol
+
+The two high-frequency messages — client **input** and host **snapshot** — are sent as compact **binary frames** (little-endian, tag byte 0, quantized positions/angles; see `lib/wire.ts`). Everything else (lobby, settings, events) stays JSON (`game/net/protocol.ts`).
+
+Client → host (via relay), send-on-change at ~30 Hz: throttle, steer, mode (move/cannon), aimYaw, aimPitch, fire.
+
+Host → all clients at 30 Hz: a snapshot of every boat entity `[idx, x,y,z, qx,qy,qz,qw, lives, flags, aimYaw]` plus live cannonballs `[idx, x,y,z]`.
+
+Discrete events (`fire`, `hit`, `death`, `splash`) sent as reliable JSON messages. Remote boats buffer snapshots and render at `now − ~90 ms` (`INTERP_DELAY_MS`) with lerp/slerp smoothing.
 
 ## Local development
 
@@ -26,8 +40,9 @@ npm install
 npm run dev      # runs Next (:3000) AND PartyKit (:1999) together
 ```
 
-Open http://localhost:3000, enter a name, **Create game**, share the room link
-(or code) with others on the same PartyKit host. Need ≥2 ready players to start.
+Open http://localhost:3000, enter a name, hit **Play**. Everyone joins the same
+fixed room (`/room/GAME`) — share that URL with others on the same PartyKit host.
+Need ≥2 ready players to start.
 
 Individual processes if you prefer:
 
@@ -38,19 +53,23 @@ npm run party    # PartyKit dev only (:1999)
 
 ## Controls
 
+**Desktop:**
+
 | Action | Input |
 |---|---|
 | Sail forward / back | `W`/`S` or `↑`/`↓` |
 | Steer | `A`/`D` or `←`/`→` |
 | Look around (sailing) | Mouse |
-| Cannon mode | Hold **Right Mouse** or press **C** |
+| Cannon mode | **Mouse Click** or press **space** |
 | Aim (cannon mode) | Mouse |
-| Fire | **Left Mouse** |
+| Fire | **Mouse Click** |
+
+**Mobile:** on-screen dual sticks (sail/steer left, look right; the left stick becomes FIRE and the right stick aims in cannon mode), plus a mode-toggle button. Phones are gated to landscape and offer a fullscreen toggle.
 
 Boats take time to gain/lose speed. Your **bow is a safe zone** — ram someone's
 side or stern to cost them a life (and get knocked back); bow-to-bow just bounces.
 Cannon shots arc under gravity (a dashed trajectory shows the landing spot) and
-have a reload. 3 lives each.
+have a reload.
 
 ## Deploy
 
@@ -67,7 +86,7 @@ Frontend and relay deploy separately.
    ```
    NEXT_PUBLIC_PARTYKIT_HOST = paper-armada.<your-account>.partykit.dev
    ```
-   (See `.env.local.example`.) Deploy. Done.
+   (See `.env.example`.) Deploy. Done.
 
 ## Leaderboard order
 
@@ -76,17 +95,3 @@ Frontend and relay deploy separately.
 3. Most damage dealt
 
 Ties share a rank.
-
-## Status
-
-Verified working: lobby (roster, unique colors, host, timer, ready/start),
-countdown→playing→ended flow, animated sea + buoyant boats, momentum sailing,
-wall collisions, third-person ↔ first-person cannon camera transition, trajectory
-preview + reload, cannonball spawning, the relay (2+ players, host simulating all
-boats, snapshot streaming), and the bow safe-zone ram rule.
-
-Best validated with a real 2+ browser playtest: ball-on-boat / side-ram damage
-feel, hit camera shake, and the end-screen leaderboard reveal.
-
-Boats are procedural placeholders — swap in sourced low-poly `.glb` models in
-`components/game/Boat.tsx` (keep local axes: forward +Z, cannon at back −Z).

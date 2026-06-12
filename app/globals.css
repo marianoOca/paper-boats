@@ -53,3 +53,15 @@ button {
     transform: rotate(-9deg) scale(1.07);
   }
 }
+
+/* Orientation gate: phone glyph tips from portrait to landscape and back. */
+@keyframes rotate-phone {
+  0%,
+  25% {
+    transform: rotate(0deg);
+  }
+  60%,
+  100% {
+    transform: rotate(-90deg);
+  }
+}
