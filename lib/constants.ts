@@ -9,6 +9,7 @@ export const MAX_PLAYERS = 12;
 export const MIN_PLAYERS_TO_START = 2;
 export const START_LIVES = 3;
 export const COUNTDOWN_MS = 3000;
+export const DISCONNECT_GRACE_MS = 2000; // grace before disconnect banner + host failover (also: host-stall handoff)
 
 export const ARENA_RADIUS = 60; // inner radius of the wooden bucket
 export const WALL_HEIGHT = 16;

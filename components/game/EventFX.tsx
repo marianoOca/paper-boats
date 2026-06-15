@@ -6,7 +6,7 @@ import { useLobbyStore } from "../../game/state/lobbyStore";
 import { useInputStore } from "../../game/state/inputStore";
 import { addShake } from "../../game/state/fx";
 import { useTauntStore } from "../../game/state/tauntStore";
-import { SUNK_TAUNTS, KILL_TAUNTS } from "../../lib/taunts";
+import { SUNK_TAUNTS, KILL_TAUNTS } from "../../lib/copy";
 
 export function EventFX() {
   const myId = useLobbyStore((s) => s.myId);

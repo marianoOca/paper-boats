@@ -8,6 +8,7 @@ import { hostState, type BallSpec } from "../../game/sim/hostState";
 import { applyBoatControl, applyBuoyancy, applyRighting } from "../../game/sim/physicsHelpers";
 import { hostInputs, NEUTRAL_INPUT, type BoatInput } from "../../game/net/hostInputs";
 import { useLobbyStore } from "../../game/state/lobbyStore";
+import { useGameStore, sampleWorld, type Sample } from "../../game/state/gameStore";
 import { useTauntStore } from "../../game/state/tauntStore";
 import { useNetStore } from "../../game/state/netStore";
 import { useInputStore } from "../../game/state/inputStore";
@@ -25,12 +26,14 @@ import {
 import { FLAG_ALIVE } from "../../game/net/protocol";
 import { encodeSnap, type SnapBall, type SnapEnt } from "../../lib/wire";
 
+const SPAWN_HEIGHT = 6; // boats spawn above the surface and fall down at match start
+
 function spawn(index: number, total: number): { pos: [number, number, number]; yaw: number } {
   const a = (index / Math.max(1, total)) * Math.PI * 2;
   const r = ARENA_RADIUS * 0.62;
   const x = Math.cos(a) * r;
   const z = Math.sin(a) * r;
-  return { pos: [x, 1.2, z], yaw: Math.atan2(-x, -z) };
+  return { pos: [x, SPAWN_HEIGHT, z], yaw: Math.atan2(-x, -z) };
 }
 
 function Walls() {
@@ -71,13 +74,12 @@ function readSelfInput(): BoatInput {
 interface DirectorState {
   playingSent: boolean;
   endSent: boolean;
-  matchEndAt: number;
   endDeferAt: number;
 }
 
 function HostLoop({ onSpawn }: { onSpawn: (s: BallSpec) => void }) {
   const acc = useRef({ snap: 0, stats: 0 });
-  const dir = useRef<DirectorState>({ playingSent: false, endSent: false, matchEndAt: 0, endDeferAt: 0 });
+  const dir = useRef<DirectorState>({ playingSent: false, endSent: false, endDeferAt: 0 });
 
   useFrame((_, dtRaw) => {
     const dt = Math.min(dtRaw, 0.05);
@@ -96,7 +98,10 @@ function HostLoop({ onSpawn }: { onSpawn: (s: BallSpec) => void }) {
     for (const p of players) {
       const body = hostState.bodies.get(p.id);
       if (!body) continue;
-      const input = p.id === myId ? readSelfInput() : hostInputs.get(p.id) ?? NEUTRAL_INPUT;
+      const input =
+        p.id === myId ? readSelfInput()
+        : p.connected === false ? NEUTRAL_INPUT // disconnected: coast to a stop, no fire
+        : hostInputs.get(p.id) ?? NEUTRAL_INPUT;
       const rt = hostState.ensure(p.id);
       const t = body.translation();
 
@@ -176,16 +181,21 @@ function HostLoop({ onSpawn }: { onSpawn: (s: BallSpec) => void }) {
     if (lobby.phase === "lobby") {
       d.playingSent = false;
       d.endSent = false;
-      d.matchEndAt = 0;
       d.endDeferAt = 0;
     } else if (lobby.phase === "countdown" && lobby.startEpoch != null && !d.playingSent) {
       if (sNow - lobby.startEpoch >= COUNTDOWN_MS) {
         d.playingSent = true;
-        d.matchEndAt = lobby.settings.timerSec ? sNow + lobby.settings.timerSec * 1000 : 0;
         send({ t: "phase", phase: "playing" });
       }
     } else if (lobby.phase === "playing" && !d.endSent) {
-      const timeUp = d.matchEndAt > 0 && sNow >= d.matchEndAt;
+      // Derive the deadline from server-authoritative startEpoch (preserved across a
+      // host switch) so a host that took over mid-match — and never saw the countdown
+      // transition — still ends the match on time.
+      const endAt =
+        lobby.startEpoch != null && lobby.settings.timerSec
+          ? lobby.startEpoch + COUNTDOWN_MS + lobby.settings.timerSec * 1000
+          : 0;
+      const timeUp = endAt > 0 && sNow >= endAt;
       const lastStanding = players.length > 1 && hostState.aliveCount() <= 1;
       if (timeUp || lastStanding) {
         // Defer 2s so the final sinking animation is visible before leaderboard.
@@ -210,19 +220,57 @@ export function HostWorld() {
 
   // Reset during render (before child RigidBody ref callbacks register bodies);
   // an effect here would run AFTER children mount and wipe their registrations.
+  // If we're taking over a match in progress (old host dropped), reconstruct the
+  // sim from the last snapshot instead of resetting to a fresh game.
+  const takeover = useRef<Sample | null>(null);
   const inited = useRef(false);
   if (!inited.current) {
     inited.current = true;
-    hostState.startLives = useLobbyStore.getState().settings.startLives;
-    hostState.reset();
+    const lobby = useLobbyStore.getState();
+    hostState.startLives = lobby.settings.startLives;
+    // Takeover = HostWorld mounts while a match is already *playing* (mid-match host
+    // promotion). The original host always mounts at "countdown" -> fresh spawn ring,
+    // so stale snaps from a previous match can't be mistaken for live state.
+    const midMatch = lobby.phase === "playing" && useGameStore.getState().snaps.length > 0;
+    if (midMatch) {
+      const sample = sampleWorld(performance.now());
+      takeover.current = sample;
+      hostState.restoreFrom(lobby.players.filter((p) => p.name), sample.time);
+      // self input bypasses syncFireSeq, so adopt its baseline here too
+      const self = hostState.rt.get(lobby.myId);
+      if (self) {
+        self.lastFireSeq = useInputStore.getState().fireSeq;
+        self.fireSeqSynced = true;
+      }
+    } else {
+      hostState.reset();
+    }
   }
   useEffect(() => () => hostState.reset(), []);
 
   const onSpawn = useCallback((s: BallSpec) => setBalls((b) => [...b, s]), []);
   const removeBall = useCallback((id: string) => setBalls((b) => b.filter((x) => x.id !== id)), []);
 
+  // Freeze each boat's initial transform per id. Recomputing spawn(i, total) on every
+  // roster change (e.g. a late joiner bumps players.length) would feed already-mounted
+  // RigidBodies a new `position` prop, teleporting existing boats off where they are.
+  const spawns = useRef(
+    new Map<string, { pos: [number, number, number]; yaw: number; quat?: [number, number, number, number] }>()
+  );
   const layout = useMemo(
-    () => players.map((p, i) => ({ p, ...spawn(i, players.length) })),
+    () =>
+      players.map((p, i) => {
+        let s = spawns.current.get(p.id);
+        if (!s) {
+          // takeover: spawn each boat where the last snapshot left it; else the ring
+          const t = takeover.current?.ents.get(p.id);
+          s = t
+            ? { pos: [t.x, t.y, t.z], yaw: 0, quat: [t.qx, t.qy, t.qz, t.qw] }
+            : { ...spawn(i, players.length), quat: undefined };
+          spawns.current.set(p.id, s);
+        }
+        return { p, ...s };
+      }),
     // re-layout only when the set of players changes
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [players.map((p) => p.id).join(",")]
@@ -231,9 +279,9 @@ export function HostWorld() {
   return (
     <Physics gravity={[0, GRAVITY_Y, 0]} timeStep={1 / TICK_HZ}>
       {arenaMode === "walls" && <Walls />}
-      {layout.map(({ p: layoutPlayer, pos, yaw }) => {
+      {layout.map(({ p: layoutPlayer, pos, yaw, quat }) => {
         const livePlayer = players.find((x) => x.id === layoutPlayer.id) ?? layoutPlayer;
-        return <PhysicsBoat key={layoutPlayer.id} player={livePlayer} selfId={myId} pos={pos} yaw={yaw} taunt={taunts[livePlayer.id]} />;
+        return <PhysicsBoat key={layoutPlayer.id} player={livePlayer} selfId={myId} pos={pos} yaw={yaw} quat={quat} taunt={taunts[livePlayer.id]} />;
       })}
       {balls.map((b) => (
         <HostBall key={b.id} spec={b} onDone={removeBall} />

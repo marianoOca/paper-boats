@@ -1,12 +1,14 @@
 "use client";
-import { type Ref, useMemo, useRef } from "react";
+import { type Ref, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
 import { Html, useGLTF } from "@react-three/drei";
 import { CannonRig } from "./Cannon";
 import { MuzzleFlash } from "./MuzzleFlash";
 import { useInputStore } from "../../game/state/inputStore";
-import { BOAT, START_LIVES } from "../../lib/constants";
+import { BOAT, DISCONNECT_GRACE_MS, START_LIVES } from "../../lib/constants";
+
+const DISCONNECT_MSG = "having connection issues, please don't shoot me >.<";
 
 const BUBBLE_COUNT = 12;
 const BUBBLE_OFFSETS = Array.from({ length: BUBBLE_COUNT }, (_, i) => ({
@@ -78,6 +80,7 @@ export interface BoatVisualProps {
   lives?: number;
   maxLives?: number;
   sunk?: boolean;
+  connected?: boolean;
   showLabel?: boolean;
   isLocal?: boolean;
   taunt?: string;
@@ -295,7 +298,18 @@ function TauntBubble({ text }: { text: string }) {
   );
 }
 
-export function Boat({ color, name, lives = 3, maxLives = START_LIVES, sunk, showLabel, isLocal, taunt, cannonYawRef }: BoatVisualProps) {
+export function Boat({ color, name, lives = 3, maxLives = START_LIVES, sunk, connected = true, showLabel, isLocal, taunt, cannonYawRef }: BoatVisualProps) {
+  // Show the "connection issues" banner only after the grace window, clear on reconnect.
+  const [showDisconnect, setShowDisconnect] = useState(false);
+  useEffect(() => {
+    if (connected) {
+      setShowDisconnect(false);
+      return;
+    }
+    const t = setTimeout(() => setShowDisconnect(true), DISCONNECT_GRACE_MS);
+    return () => clearTimeout(t);
+  }, [connected]);
+
   const { mesh, yFix } = useBoatScene(color, sunk);
   const fold = foldPoints();
   const sinkFraction = Math.min(1, Math.max(0, (maxLives - lives) / maxLives));
@@ -392,6 +406,7 @@ export function Boat({ color, name, lives = 3, maxLives = START_LIVES, sunk, sho
             >
               {name} <span style={{ color: "#e6433f" }}>{"♥".repeat(Math.max(0, lives))}</span>
               {taunt && <TauntBubble text={taunt} />}
+              {showDisconnect && <TauntBubble text={DISCONNECT_MSG} />}
             </div>
           </Html>
         )}

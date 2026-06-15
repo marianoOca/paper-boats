@@ -4,6 +4,7 @@ import type { Phase, PlayerMeta, RoomSettings } from "../net/protocol";
 interface LobbyState {
   myId: string;
   connected: boolean;
+  gotRoom: boolean; // a `room` message has been received (slot info is now trustworthy)
   full: boolean;
   phase: Phase;
   hostId: string;
@@ -28,6 +29,7 @@ interface LobbyState {
 export const useLobbyStore = create<LobbyState>((set) => ({
   myId: "",
   connected: false,
+  gotRoom: false,
   full: false,
   phase: "lobby",
   hostId: "",
@@ -39,7 +41,7 @@ export const useLobbyStore = create<LobbyState>((set) => ({
   setMyId: (myId) => set({ myId }),
   setConnected: (connected) => set({ connected }),
   setFull: (full) => set({ full }),
-  applyRoom: (r) => set({ ...r }),
+  applyRoom: (r) => set({ ...r, gotRoom: true }),
 }));
 
 // selector helpers

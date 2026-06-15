@@ -1,4 +1,5 @@
 "use client";
+import { useState, useRef, useEffect } from "react";
 import { useNetStore } from "../../game/state/netStore";
 import { useLobbyStore, selectMe } from "../../game/state/lobbyStore";
 import { useInputStore } from "../../game/state/inputStore";
@@ -10,6 +11,7 @@ import { PixelHourglass, PixelHeart, PixelBoat } from "./PixelIcons";
 import { clamp } from "../../lib/math";
 import { useTick } from "./useTick";
 import { useDevice } from "./useDevice";
+import { CANNON_SPAM } from "../../lib/copy";
 
 function fmt(sec: number) {
   const m = Math.floor(sec / 60);
@@ -27,6 +29,22 @@ export function Hud() {
   const mode = useInputStore((s) => s.mode);
   const lastFireAt = useInputStore((s) => s.lastFireAt);
   const charging = useInputStore((s) => s.charging);
+  const spamCount = useInputStore((s) => s.spamCount);
+  const resetSpamCount = useInputStore((s) => s.resetSpamCount);
+
+  const [spamMsg, setSpamMsg] = useState<string | null>(null);
+  const spamTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (spamCount >= 3 && !spamTimerRef.current) {
+      setSpamMsg(CANNON_SPAM[Math.floor(Math.random() * CANNON_SPAM.length)]);
+      resetSpamCount();
+      spamTimerRef.current = setTimeout(() => {
+        setSpamMsg(null);
+        spamTimerRef.current = null;
+      }, 5000);
+    }
+  }, [spamCount, resetSpamCount]);
   const serverNow = useNetStore((s) => s.serverNow);
   const myTaunt = useTauntStore((s) => (me ? s.taunts[me.id] : undefined));
   const { isTouch } = useDevice();
@@ -97,8 +115,13 @@ export function Hud() {
       )}
 
       {/* reload bar */}
-      {cannon && (
+      {cannon && (me?.alive ?? true) && (
         <div style={{ position: "absolute", left: "50%", bottom: 70, transform: "translateX(-50%)", width: 220 }}>
+          {spamMsg && (
+            <div style={{ textAlign: "center", fontSize: 14, fontWeight: 700, color: "#e6433f", marginBottom: 4, ...txt }}>
+              {spamMsg}
+            </div>
+          )}
           <div style={{ height: 12, background: "#0007", border: "2px solid #000", borderRadius: 4 }}>
             <div
               style={{
@@ -119,6 +142,7 @@ export function Hud() {
           <div>WASD / arrows — sail</div>
           <div>Mouse — {cannon ? "aim" : "look"}</div>
           <div>Click — {cannon ? "shoot" : "cannon"}</div>
+          <div>Esc — release mouse</div>
         </div>
       )}
 

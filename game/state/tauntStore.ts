@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { TAUNT_MS } from "../../lib/taunts";
+import { TAUNT_MS } from "../../lib/copy";
 
 interface TauntState {
   // playerId -> phrase currently shown above their boat / in their HUD

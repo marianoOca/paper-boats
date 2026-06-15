@@ -14,15 +14,26 @@ export function PhysicsBoat({
   selfId,
   pos,
   yaw,
+  quat,
   taunt,
 }: {
   player: PlayerMeta;
   selfId: string;
   pos: [number, number, number];
   yaw: number;
+  quat?: [number, number, number, number];
   taunt?: string;
 }) {
   const ref = useRef<RapierRigidBody | null>(null);
+  // takeover: seed the body at the snapshot's full orientation; else upright + yaw
+  const rotation = useRef<[number, number, number]>(
+    quat
+      ? (() => {
+          const e = new THREE.Euler().setFromQuaternion(new THREE.Quaternion(quat[0], quat[1], quat[2], quat[3]));
+          return [e.x, e.y, e.z];
+        })()
+      : [0, yaw, 0]
+  ).current;
 
   const setRef = useCallback(
     (b: RapierRigidBody | null) => {
@@ -58,7 +69,7 @@ export function PhysicsBoat({
       ref={setRef}
       colliders={false}
       position={pos}
-      rotation={[0, yaw, 0]}
+      rotation={rotation}
       linearDamping={BOAT.linDamp}
       angularDamping={BOAT.angDamp}
       canSleep={false}
@@ -78,6 +89,7 @@ export function PhysicsBoat({
         lives={player.lives}
         maxLives={hostState.startLives}
         sunk={!player.alive}
+        connected={player.connected !== false}
         showLabel
         isLocal={player.id === selfId}
         taunt={taunt}

@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { FONT_MONO, PANEL, pirateBtn, INPUT, PIRATE_GOLD } from "../../lib/uiStyles";
+import { SPLASHES } from "../../lib/copy";
 import { PixelAnchor } from "./PixelIcons";
 
 export function Landing({ onPlay }: { onPlay: (name: string) => void }) {
@@ -64,42 +65,6 @@ export function Landing({ onPlay }: { onPlay: (name: string) => void }) {
   );
 }
 
-const SPLASHES = [
-  "As pirates stole the gold, we'll steal your code!",
-  "git push --force, ye scallywag!",
-  "Plunder the repo!",
-  "Memory leak?!, WALK THE PLANK!!",
-  "Now with 100% more cannonballs!",
-  "Ship it or walk the plank!",
-  "X marks the merge conflict!",
-  "No bugs, only barnacles!",
-  "Powered by rum and React!",
-  "Yarr-chitecture!",
-  "Sink your tech debt!",
-  "Commit early, plunder often!",
-  "Avast! Don't deploy on Friday!",
-  "Hoist the main branch!",
-  "Made by software pirates!",
-  "Steal the booty, ship the code!",
-  "Dead men tell no tales. Production logs tell everything!",
-  "Raise the flag! the build finally passed!",
-  "Ye call it technical debt. We pirates call it buried treasure",
-  "Only 3Rs: Rum, rebellion and refactoring!",
-  "A pirate fears no ocean monster… except merge conflicts",
-  "The sea shows no mercy. Neither does production!",
-  "Trust the compass. Distrust the legacy code!",
-  "We set sail with dreams and return with stack traces",
-  "A smooth sea never made a senior developer!",
-  "404 Treasure Not Found",
-  "Permission denied? Mutiny!",
-  "Never listen to the sirens! (AI suggestions)",
-  "Arrr-gument type mismatch!",
-  "Ahoy! New pull request incoming!",
-  "A true pirate never reads the documentation!",
-  "Code review? Sounds like mutiny!",
-  "Cap'n, the Docker container is sinking!",
-  "Buried under deep dependencies!",
-];
 
 const splashStyle: React.CSSProperties = {
   position: "absolute",

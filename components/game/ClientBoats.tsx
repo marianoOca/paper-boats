@@ -73,6 +73,7 @@ export function ClientBoats() {
             lives={p.lives}
             maxLives={startLives}
             sunk={!p.alive}
+            connected={p.connected !== false}
             showLabel
             isLocal={p.id === myId}
             taunt={taunts[p.id]}

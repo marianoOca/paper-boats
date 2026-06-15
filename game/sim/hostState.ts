@@ -1,13 +1,13 @@
 import { Euler, Quaternion, Vector3 } from "three";
 import type { RapierRigidBody } from "@react-three/rapier";
-import { BOAT, CANNON, RAM, START_LIVES } from "../../lib/constants";
-import { SUNK_TAUNTS, KILL_TAUNTS } from "../../lib/taunts";
+import { BOAT, CANNON, RAM, START_LIVES, TICK_HZ } from "../../lib/constants";
+import { SUNK_TAUNTS, KILL_TAUNTS } from "../../lib/copy";
 import { BARREL_LEN } from "./aim";
 import { classifyRam } from "./physicsHelpers";
 import { useNetStore } from "../state/netStore";
 import { useGameStore } from "../state/gameStore";
 import type { BoatInput } from "../net/hostInputs";
-import type { GameEvent, StatPatch } from "../net/protocol";
+import type { GameEvent, PlayerMeta, StatPatch } from "../net/protocol";
 
 export interface BoatRT {
   id: string;
@@ -17,6 +17,7 @@ export interface BoatRT {
   reloadUntil: number;
   ramCdUntil: number;
   lastFireSeq: number;
+  fireSeqSynced: boolean; // false after a host takeover until the real fireSeq baseline is adopted
   deathTick: number | null;
   damageDealt: number;
   fellOff: boolean;
@@ -73,6 +74,48 @@ class HostState {
     this.pendingSpawns = [];
   }
 
+  /**
+   * Host takeover: rebuild runtime state from the authoritative roster + the last
+   * known sim clock, instead of resetting to a fresh match. Bodies are re-seeded
+   * at snapshot positions by HostWorld; cannonballs in flight and cooldowns are
+   * dropped (acceptable). fireSeqSynced=false so the first real input from each
+   * player adopts its fireSeq baseline rather than firing a phantom shot.
+   */
+  restoreFrom(players: PlayerMeta[], simTime: number) {
+    this.bodies.clear();
+    this.ballBodies.clear();
+    this.rt.clear();
+    this.simTime = simTime;
+    this.tick = Math.round(simTime * TICK_HZ);
+    this.statsDirty = true;
+    this.ballSeq = 0;
+    this.pendingSpawns = [];
+    for (const p of players) {
+      this.rt.set(p.id, {
+        id: p.id,
+        lives: p.lives,
+        alive: p.alive,
+        invulnUntil: 0,
+        reloadUntil: 0,
+        ramCdUntil: 0,
+        lastFireSeq: 0,
+        fireSeqSynced: false,
+        deathTick: p.deathTick,
+        damageDealt: p.damageDealt,
+        fellOff: false,
+      });
+    }
+  }
+
+  /** Adopt a player's current fireSeq as the no-fire baseline (first input post-takeover). */
+  syncFireSeq(id: string, fireSeq: number) {
+    const rt = this.rt.get(id);
+    if (rt && !rt.fireSeqSynced) {
+      rt.lastFireSeq = fireSeq;
+      rt.fireSeqSynced = true;
+    }
+  }
+
   ensure(id: string): BoatRT {
     let r = this.rt.get(id);
     if (!r) {
@@ -84,6 +127,7 @@ class HostState {
         reloadUntil: 0,
         ramCdUntil: 0,
         lastFireSeq: 0,
+        fireSeqSynced: true,
         deathTick: null,
         damageDealt: 0,
         fellOff: false,

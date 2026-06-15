@@ -25,6 +25,7 @@ export interface PlayerMeta {
   color: string;
   ready: boolean;
   isHost: boolean;
+  connected: boolean; // false while the socket is down; boat freezes in place
   alive: boolean;
   lives: number;
   deathTick: number | null; // host sim tick at death (later = survived longer)
@@ -76,6 +77,7 @@ export type ClientMsg =
   | { t: "ev"; ev: GameEvent }
   | { t: "stats"; players: StatPatch[] }
   | { t: "phase"; phase: Phase; endReason?: "timeout" | "combat" }
+  | { t: "vis"; v: boolean } // tab foreground (true) / backgrounded (false)
   | { t: "ping"; ts: number };
 
 // ---- server -> client ----

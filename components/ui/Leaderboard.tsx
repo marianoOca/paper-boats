@@ -6,6 +6,12 @@ import { useLobbyStore, selectIsHost, selectMe } from "../../game/state/lobbySto
 import type { PlayerMeta } from "../../game/net/protocol";
 import { FONT_MONO, TEXT_SHADOW, PANEL, pirateBtn, WOOD_ACTIVE } from "../../lib/uiStyles";
 import { PixelAnchor, PixelHourglass, PixelMedal } from "./PixelIcons";
+import { TICK_HZ } from "../../lib/constants";
+
+function formatTicks(ticks: number): string {
+  const s = Math.floor(ticks / TICK_HZ);
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+}
 
 const MEDAL_COLORS: Record<number, string> = { 1: "#ffd700", 2: "#c0c0c0", 3: "#cd7f32" };
 function medal(rank?: number) {
@@ -132,6 +138,7 @@ export function Leaderboard() {
               <span style={{ flex: 1, fontWeight: 700 }}>{p.name}</span>
               <span style={{ opacity: 0.8 }}>{status(p)}</span>
               <span style={{ width: 70, textAlign: "right" }}>{p.damageDealt} hits</span>
+              <span style={{ width: 52, textAlign: "right", opacity: 0.7 }}>{p.deathTick != null ? formatTicks(p.deathTick) : "—"}</span>
             </div>
           ))}
         </div>

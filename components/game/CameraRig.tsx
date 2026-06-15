@@ -14,6 +14,10 @@ const TP_DIST = 11;
 const TP_HEIGHT = 3;
 const TP_BASE_PITCH = 0.40;
 
+const INTRO_HEIGHT = 34;   // start height above boat for the spawn intro
+const INTRO_BACK = 6;      // start offset behind boat (gives the down-arc, avoids gimbal lock)
+const INTRO_SPRING = 3.2;  // decay rate → ~1s visible descent (damp reaches ~5% at 3/λ)
+
 const desired = new THREE.Vector3();
 const target = new THREE.Vector3();
 const boatPos = new THREE.Vector3();
@@ -30,6 +34,7 @@ export function CameraRig() {
   const lastFireSeq = useRef(0);
   const recoilZ = useRef(0);
   const wasPresent = useRef(false);
+  const intro = useRef(0); // 1 = top-down spawn intro, decays to 0 = normal chase
 
   useFrame((_, dtRaw) => {
     const dt = Math.min(dtRaw, 0.05);
@@ -38,6 +43,10 @@ export function CameraRig() {
     wasPresent.current = true;
     const ins = useInputStore.getState();
     const isSunk = !alive;
+
+    // Spawn intro: arm on first frame, decay each frame (top-down → default chase)
+    if (firstFrame) intro.current = 1;
+    intro.current = damp(intro.current, 0, INTRO_SPRING, dt);
 
     // Detect fire and trigger recoil
     if (ins.fireSeq !== lastFireSeq.current) {
@@ -95,12 +104,23 @@ export function CameraRig() {
     const fpTZ = muzzleW.z + aimDir.z * 15;
 
     // blend position & look target
-    const px = THREE.MathUtils.lerp(tpPos.x, eyeX, b);
-    const py = THREE.MathUtils.lerp(tpPos.y, eyeY, b);
-    const pz = THREE.MathUtils.lerp(tpPos.z, eyeZ, b);
+    let px = THREE.MathUtils.lerp(tpPos.x, eyeX, b);
+    let py = THREE.MathUtils.lerp(tpPos.y, eyeY, b);
+    let pz = THREE.MathUtils.lerp(tpPos.z, eyeZ, b);
     const tx = THREE.MathUtils.lerp(tpTarget.x, fpTX, b);
     const ty = THREE.MathUtils.lerp(tpTarget.y, fpTY, b);
     const tz = THREE.MathUtils.lerp(tpTarget.z, fpTZ, b);
+
+    // Spawn intro: pull camera position toward a high pose behind the boat, decaying to default.
+    // boatYaw (not camYaw) keeps the start framing stable regardless of look input.
+    if (intro.current > 0.001) {
+      const topX = boatPos.x - Math.sin(boatYaw) * INTRO_BACK;
+      const topY = boatPos.y + INTRO_HEIGHT;
+      const topZ = boatPos.z - Math.cos(boatYaw) * INTRO_BACK;
+      px = THREE.MathUtils.lerp(px, topX, intro.current);
+      py = THREE.MathUtils.lerp(py, topY, intro.current);
+      pz = THREE.MathUtils.lerp(pz, topZ, intro.current);
+    }
 
     // smooth follow (snappier in cannon mode); snap on first frame
     const k = 10 + b * 14;
