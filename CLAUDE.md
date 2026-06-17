@@ -72,7 +72,7 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 ```
 app/
-  page.tsx                  Renders <Landing>: name entry → /room/GAME
+  page.tsx                  First visit shows <Landing> (name entry); a returning player (saved name) auto-redirects to /room/GAME
   layout.tsx                Root: mounts OrientationGate + FullscreenButton globally
   globals.css
   icon.png                  Favicon / app icon
@@ -123,7 +123,7 @@ game/
     fx.ts                   FX event store (hit flashes, screen shake triggers)
     gameStore.ts            Zustand: snaps, events
     inputStore.ts           Zustand: local input frame
-    lobbyStore.ts           Zustand: players, phase, settings, myId
+    lobbyStore.ts           Zustand: players, phase, settings, myId, pendingName (name picked at splash, committed on room mount)
     localBoat.ts            Derived local boat state
     netStore.ts             Zustand: socket ref + send helper
     tauntStore.ts           Zustand: taunt message state
@@ -131,7 +131,7 @@ game/
 lib/
   constants.ts              Tick/snapshot/input rates, MAX_PLAYERS, lives, arena, BOAT/RAM/CANNON tunables, BOAT_COLORS, TIMER_OPTIONS
   math.ts                   makeRoomCode, vectors, clamp, deg
-  taunts.ts                 Taunt strings/data
+  copy.ts                   Taunt/splash/spam strings (SUNK_TAUNTS, KILL_TAUNTS, SPLASHES, CANNON_SPAM)
   uiStyles.ts               Shared UI style constants
   waves.ts                  Ocean wave math (Gerstner height(x,z,t) — shared by sim + shader)
   wire.ts                   Binary codec for the high-frequency snap + input frames (JSON for everything else)
@@ -143,9 +143,13 @@ partykit.json               PartyKit project config
 
 ### Key data flows
 
-- **Join:** client connects → server assigns first free color + `ready:true` → client sends `join{name}` → server broadcasts `room`
+- **Connect:** client connects with stable `clientId` (localStorage) → server sends `welcome{id}` + `room` snapshot → client checks if id already owns a slot (reconnect path)
+- **Join:** client sends `join{name}` → server creates slot (first free color + idx), sets first joiner as host → broadcasts `room`
+- **Reconnect grace:** on disconnect during match, server freezes slot + starts `DISCONNECT_GRACE_MS` timer; reconnecting within the window unfreezes the slot (no name re-entry)
 - **Color change:** client sends `setColor` → server validates (free?) → broadcasts `room` (real-time for all)
-- **Start:** host sends `start` → server sets phase `countdown` → broadcasts → HostWorld begins sim
-- **Simulation:** HostWorld sends binary `snap` (lib/wire.ts) + `ev` → server rebroadcasts to all clients → ClientBoats interpolates
-- **Input:** clients send binary input frames (lib/wire.ts) → server relays to host connection → hostInputs map → next sim tick
-- **Stats:** HostWorld sends `stats`/`phase` → server folds into PlayerMeta → broadcasts `room`
+- **Host failover:** client sends `vis{v}` on visibility change → server tracks backgrounded tabs; if host disconnects or stalls (watchdog timeout), promotes next foreground-visible player
+- **Start:** host sends `start` → server sets phase `countdown`, records `startEpoch`, arms host watchdog → broadcasts → HostWorld begins sim
+- **Simulation:** HostWorld sends binary `snap` (lib/wire.ts) → server rebroadcasts + rearms watchdog; `ev` events ride JSON relay
+- **Input:** clients send binary input frames (lib/wire.ts) → server splices in sender idx → relays to host connection → hostInputs map → next sim tick
+- **Stats/phase:** HostWorld sends `stats`/`phase` → server folds into PlayerMeta → broadcasts `room`; `phase=ended` triggers rank assignment
+- **Rematch:** host sends `rematch` → server resets to lobby (prunes disconnected ghosts, resets lives/stats)

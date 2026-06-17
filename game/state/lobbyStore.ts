@@ -13,9 +13,13 @@ interface LobbyState {
   startEpoch: number | null;
   endReason: "timeout" | "combat" | null;
 
+  pendingName: string;
+  setPendingName: (n: string) => void;
+
   setMyId: (id: string) => void;
   setConnected: (c: boolean) => void;
   setFull: (f: boolean) => void;
+  resetConnection: () => void;
   applyRoom: (r: {
     phase: Phase;
     hostId: string;
@@ -27,6 +31,9 @@ interface LobbyState {
 }
 
 export const useLobbyStore = create<LobbyState>((set) => ({
+  pendingName: "",
+  setPendingName: (n) => set({ pendingName: n }),
+
   myId: "",
   connected: false,
   gotRoom: false,
@@ -41,6 +48,7 @@ export const useLobbyStore = create<LobbyState>((set) => ({
   setMyId: (myId) => set({ myId }),
   setConnected: (connected) => set({ connected }),
   setFull: (full) => set({ full }),
+  resetConnection: () => set({ connected: false, gotRoom: false, players: [], full: false }),
   applyRoom: (r) => set({ ...r, gotRoom: true }),
 }));
 

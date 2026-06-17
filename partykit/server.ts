@@ -62,6 +62,15 @@ export default class GameServer implements Party.Server {
       return;
     }
     p.connected = false;
+    // A host's sim state lives only in its tab, so a reload wipes it — a returning
+    // host can't restore positions it never snapshotted and would reset everyone to
+    // the spawn ring. Hand authority straight to another live tab that still holds
+    // snapshots (it reconstructs the match in place); the old host returns as a
+    // client. onGraceExpired stays the fallback for when nobody else can host yet.
+    if (id === this.hostId) {
+      const next = this.pickVisibleHost(id);
+      if (next) this.hostId = next;
+    }
     this.broadcastRoom();
     this.clearDisconnectTimer(id);
     this.disconnectTimers.set(id, setTimeout(() => this.onGraceExpired(id), DISCONNECT_GRACE_MS));

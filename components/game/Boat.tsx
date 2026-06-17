@@ -5,6 +5,7 @@ import { useFrame } from "@react-three/fiber";
 import { Html, useGLTF } from "@react-three/drei";
 import { CannonRig } from "./Cannon";
 import { MuzzleFlash } from "./MuzzleFlash";
+import { PixelSkull } from "../ui/PixelIcons";
 import { useInputStore } from "../../game/state/inputStore";
 import { BOAT, DISCONNECT_GRACE_MS, START_LIVES } from "../../lib/constants";
 
@@ -429,7 +430,7 @@ export function Boat({ color, name, lives = 3, maxLives = START_LIVES, sunk, con
               pointerEvents: "none",
             }}
           >
-            ☠️ {name}
+            <PixelSkull /> {name}
             {taunt && <TauntBubble text={taunt} />}
           </div>
         </Html>

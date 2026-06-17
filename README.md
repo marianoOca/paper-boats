@@ -42,7 +42,9 @@ npm run dev      # runs Next (:3000) AND PartyKit (:1999) together
 
 Open http://localhost:3000, enter a name, hit **Play**. Everyone joins the same
 fixed room (`/room/GAME`) — share that URL with others on the same PartyKit host.
-Need ≥2 ready players to start.
+Need ≥2 ready players to start. Your name is remembered (localStorage), so reopening
+the app skips the splash and drops you back into the room — rejoining a match already
+in progress if you still hold a boat.
 
 Individual processes if you prefer:
 
@@ -91,7 +93,7 @@ Frontend and relay deploy separately.
 ## Leaderboard order
 
 1. Survived the longest (alive > dead; among the dead, later death ranks higher)
-2. Most lives remaining
-3. Most damage dealt
+2. Most damage dealt
+3. Most lives remaining
 
 Ties share a rank.

@@ -1,4 +1,5 @@
 "use client";
+import { useEffect, useState } from "react";
 import { Billboard } from "@react-three/drei";
 import { Ocean } from "./Ocean";
 import { Bucket } from "./Bucket";
@@ -35,6 +36,24 @@ const SKY = "#6ab0e8";
 export function Scene() {
   const isHost = useLobbyStore(selectIsHost);
   const arenaMode = useLobbyStore((s) => s.settings.arenaMode);
+
+  // Swap HostWorld<->ClientBoats across TWO commits, not one. Both render <Boat>,
+  // which mounts drei <Html> portals; tearing one subtree down and building the
+  // other in a single commit interleaves portal node removals/insertions and throws
+  // "insertBefore ... not a child of this node" (crashes the promoted host on takeover).
+  // The 'none' frame flushes removals before insertions; the 1-frame gap is invisible.
+  const want = isHost ? "host" : "client";
+  const [driver, setDriver] = useState<"host" | "client" | "none">(want);
+  useEffect(() => {
+    if (driver === want) return; // settled
+    if (driver !== "none") {
+      setDriver("none"); // commit 1: tear down current
+      return;
+    }
+    const r = requestAnimationFrame(() => setDriver(want)); // commit 2: bring up target
+    return () => cancelAnimationFrame(r);
+  }, [want, driver]);
+
   return (
     <>
       <color attach="background" args={[SKY]} />
@@ -46,7 +65,8 @@ export function Scene() {
       <Ocean mode={arenaMode} />
       <Bucket mode={arenaMode} />
       <Waterfall />
-      {isHost ? <HostWorld /> : <ClientBoats />}
+      {driver === "host" && <HostWorld />}
+      {driver === "client" && <ClientBoats />}
       <TrajectoryPreview />
       <CameraRig />
       <EventFX />

@@ -117,7 +117,7 @@ export function useConnection(code: string, profile: { name: string; color?: str
       document.removeEventListener("visibilitychange", sendVis);
       socket.close();
       useNetStore.getState().setSocket(null);
-      useLobbyStore.getState().setConnected(false);
+      useLobbyStore.getState().resetConnection();
       useGameStore.getState().clear();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

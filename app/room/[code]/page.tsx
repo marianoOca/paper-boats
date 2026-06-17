@@ -37,6 +37,17 @@ export default function RoomPage({ params }: { params: { code: string } }) {
       localStorage.setItem("pa_cid", cid);
     }
     setClientId(cid);
+    // Only commit a name the player chose at the splash this session (Zustand survives SPA
+    // nav). A name remembered from a past session is NOT committed here — it stays a prompt
+    // away: anyone not already in the current game must enter/confirm a name (the Landing
+    // screen prefills from localStorage so it's a one-click confirm). Resuming an existing
+    // slot needs no name at all — the server un-freezes it on reconnect via the clientId.
+    const store = useLobbyStore.getState();
+    const pending = store.pendingName;
+    if (pending) {
+      setName(pending);
+      store.setPendingName("");
+    }
     setMounted(true);
   }, []);
 
@@ -55,19 +66,19 @@ export default function RoomPage({ params }: { params: { code: string } }) {
   if (!mounted) return null;
   if (full) return <Center>Room is full — 12 sailors aboard</Center>;
 
-  // Wait for the first `room` before deciding: a reopened mid-match tab that still owns
-  // a boat (its id is in the roster) must skip the name screen — flashing Landing first
-  // would be wrong. Only once we know the roster can we tell that apart from a player
-  // who isn't in this match.
-  if (!gotRoom && !name) return <Center>Connecting to room {code}…</Center>;
+  // Wait for the first `room` before rendering ANY phase UI. Until it arrives the store
+  // still holds the default phase ("lobby"), so a reconnecting tab — which now always
+  // has a remembered name — would briefly flash the empty Lobby before jumping to the
+  // live game/leaderboard. Gate on `gotRoom` alone (not `!name`) so we only ever paint
+  // the authoritative phase, and a returning player lands straight on the right screen.
+  if (!gotRoom) return <Center>Connecting to room {code}…</Center>;
 
-  // No boat for our id and no chosen name => ask for one. A reconnecting player who is
-  // still part of this match already has a slot, so falls straight through to the game;
-  // anyone else (fresh lobby player, or a newcomer joining mid-match) enters a name.
-  // Exception: at the post-match leaderboard there's nothing to drive — a returning
-  // player sees their ranking and a newcomer just spectates (they'll be asked for a
-  // name at the next lobby), so never prompt during `ended`.
-  if (!hasSlot && !name && phase !== "ended") {
+  // Anyone not already in the current game must enter/confirm a name before joining —
+  // in any phase, even with a name remembered from a past game (Landing prefills it, so
+  // it's a one-click confirm). The ONLY skip is `hasSlot`: a player who already owns a
+  // slot in this game (a reconnecting tab whose frozen slot the server un-froze on
+  // reconnect) resumes straight into the game/leaderboard with no re-entry.
+  if (!hasSlot && !name) {
     return <Landing onPlay={(n) => setName(n)} />;
   }
 

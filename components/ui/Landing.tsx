@@ -9,7 +9,7 @@ export function Landing({ onPlay }: { onPlay: (name: string) => void }) {
   const [splash, setSplash] = useState("");
 
   useEffect(() => {
-    setName(sessionStorage.getItem("pa_name") || "");
+    setName(localStorage.getItem("pa_name") || "");
     setSplash(SPLASHES[Math.floor(Math.random() * SPLASHES.length)]);
   }, []);
 
@@ -18,7 +18,7 @@ export function Landing({ onPlay }: { onPlay: (name: string) => void }) {
   const play = () => {
     if (!canGo) return;
     const n = name.trim().slice(0, 16);
-    sessionStorage.setItem("pa_name", n);
+    localStorage.setItem("pa_name", n);
     onPlay(n);
   };
 

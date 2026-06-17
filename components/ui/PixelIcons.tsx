@@ -171,6 +171,25 @@ const CANNON_GRID = [
   "................",
 ];
 
+const SKULL_GRID = [
+  "....++++++o.....",
+  "..+++oooooo+o...",
+  ".+o===-o-===oo..",
+  "+o=...-+-...+oo.",
+  "+-....-+-...+o-.",
+  "+oo...-==...+o-.",
+  "=oo+++-=.++++-=.",
+  ".=----.-.o--==..",
+  "...o.o.o.o.o....",
+  ".+.=.o.o.o.=...B",
+  "+o..=======...B.",
+  "..oo........oB.+",
+  "....BB+...+o....",
+  "......oo++......",
+  "B+.o++...+oo+.Bo",
+  "+Bo.........BBo+",
+];
+
 const PHONE_GRID = [
   "....########....",
   "...#oo####oo#...",
@@ -272,6 +291,20 @@ export function PixelCannon({ size = 32 }: { size?: number }) {
       "-": "#262a3b", // barrel shadow / muzzle opening
       r: "#c96a2e", // brick carriage
       "*": "#e0913f", // brick highlight
+    },
+    size,
+  );
+}
+
+export function PixelSkull({ size = 16, color = IVORY }: { size?: number; color?: string }) {
+  return px(
+    SKULL_GRID,
+    {
+      o: color,
+      "+": shade(color, 0.5), // highlight
+      B: shade(color, 0.5), // crossbone highlight (merged with skull highlight)
+      "-": shade(color, -0.2), // shadow
+      "=": shade(color, -0.42), // deep crevice
     },
     size,
   );

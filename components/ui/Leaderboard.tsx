@@ -115,7 +115,7 @@ export function Leaderboard() {
           pointerEvents: reveal ? "auto" : "none",
         }}
       >
-        <h2 style={{ marginBottom: 10, textShadow: TEXT_SHADOW }}><PixelAnchor size={18} /> Leaderboard</h2>
+        <h2 style={{ marginBottom: 10, textShadow: TEXT_SHADOW }}><PixelAnchor size={24} /> Leaderboard</h2>
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           {ranked.map((p) => (
             <div
@@ -136,7 +136,7 @@ export function Leaderboard() {
               </span>
               <span style={{ width: 16, height: 16, background: p.color, borderRadius: 3, border: "1px solid #0003" }} />
               <span style={{ flex: 1, fontWeight: 700 }}>{p.name}</span>
-              <span style={{ opacity: 0.8 }}>{status(p)}</span>
+              <span style={{ opacity: 0.8, whiteSpace: "nowrap" }}>{status(p)}</span>
               <span style={{ width: 70, textAlign: "right" }}>{p.damageDealt} hits</span>
               <span style={{ width: 52, textAlign: "right", opacity: 0.7 }}>{p.deathTick != null ? formatTicks(p.deathTick) : "—"}</span>
             </div>

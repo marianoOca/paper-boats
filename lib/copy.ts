@@ -17,7 +17,9 @@ export const SUNK_TAUNTS = [
   "Down she goes, and so do my dreams.",
   "Send a rescue boat. Or a refactor.",
   "Plz fix, txs.",
-  "plz fix - Sent from Iphone"
+  "plz fix - Sent from Iphone",
+  "hope Claude'll fix this",
+  "don't worry! I got this!"
 ] as const;
 
 // Shown on the killer — "I sunk somebody".
@@ -71,6 +73,7 @@ export const SPLASHES = [
   "Code review? Sounds like mutiny!",
   "Cap'n, the Docker container is sinking!",
   "Buried under deep dependencies!",
+  "guess how many tokens I spent on this..."
 ];
 
 // Shown above the reload bar when player clicks shoot 3 times while reloading.
@@ -84,4 +87,5 @@ export const CANNON_SPAM = [
   "Cannonball not found. Try again in 3 seconds.",
   "Steady, cap'n. The powder's still wet.",
   "That's not a gatling gun, ye fool!",
+  "Cannon overheat! you spamming that ain't helping"
 ];
