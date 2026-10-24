@@ -8,6 +8,7 @@ import { useLobbyStore } from "../../game/state/lobbyStore";
 import { useTauntStore } from "../../game/state/tauntStore";
 import { localBoat } from "../../game/state/localBoat";
 import { CANNON } from "../../lib/constants";
+import { isFrontCannon, mountYaw } from "../../game/sim/aim";
 
 const BALL_POOL = 40;
 
@@ -39,7 +40,7 @@ export function ClientBoats() {
           localBoat.qw = e.qw;
         }
         const cr = cannonRefs.current.get(id);
-        if (cr && id !== myId) cr.rotation.y = e.ay + Math.PI;
+        if (cr && id !== myId) cr.rotation.y = e.ay + mountYaw(isFrontCannon());
       } else {
         g.visible = false;
       }

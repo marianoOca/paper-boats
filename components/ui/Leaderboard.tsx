@@ -7,6 +7,7 @@ import type { PlayerMeta } from "../../game/net/protocol";
 import { FONT_MONO, TEXT_SHADOW, PANEL, pirateBtn, WOOD_ACTIVE } from "../../lib/uiStyles";
 import { PixelAnchor, PixelHourglass, PixelMedal } from "./PixelIcons";
 import { TICK_HZ } from "../../lib/constants";
+import { sfxResult } from "../../game/audio/sfx";
 
 function formatTicks(ticks: number): string {
   const s = Math.floor(ticks / TICK_HZ);
@@ -44,6 +45,11 @@ export function Leaderboard() {
     const showReveal = setTimeout(() => setReveal(true), 3200);
     return () => { clearTimeout(hideSplash); clearTimeout(showReveal); };
   }, [endReason]);
+
+  useEffect(() => {
+    if (reveal) sfxResult(me?.rank === 1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reveal]);
 
   const ranked = [...players]
     .filter((p) => p.name)

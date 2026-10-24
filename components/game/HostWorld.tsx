@@ -14,6 +14,7 @@ import { useNetStore } from "../../game/state/netStore";
 import { useInputStore } from "../../game/state/inputStore";
 import { localBoat } from "../../game/state/localBoat";
 import { renderState } from "../../game/state/fx";
+import { waveHeight } from "../../lib/waves";
 import {
   ARENA_RADIUS,
   COUNTDOWN_MS,
@@ -128,6 +129,11 @@ function HostLoop({ onSpawn }: { onSpawn: (s: BallSpec) => void }) {
         localBoat.qz = r.z;
         localBoat.qw = r.w;
       }
+    }
+
+    for (const [id, b] of hostState.ballBodies) {
+      const t = b.translation();
+      if (t.y < waveHeight(t.x, t.z, hostState.simTime)) hostState.ballSplash(id, [t.x, t.y, t.z]);
     }
 
     if (hostState.pendingSpawns.length) {

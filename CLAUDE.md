@@ -68,14 +68,16 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 ## Codebase Structure
 
-**Paper Armada** — multiplayer browser naval battle game. Single fixed room (`/room/GAME`). PartyKit handles WebSocket relay; one browser tab acts as host and runs the physics simulation.
+**Paper Armada** — multiplayer browser naval battle game. Single fixed room (`/room/GAME`). A PartyServer Durable Object on Cloudflare Workers handles the WebSocket relay; one browser tab acts as host and runs the physics simulation.
 
 ```
 app/
   page.tsx                  First visit shows <Landing> (name entry); a returning player (saved name) auto-redirects to /room/GAME
-  layout.tsx                Root: mounts OrientationGate + FullscreenButton globally
+  layout.tsx                Root: mounts OrientationGate + top-right MuteButton/FullscreenButton globally; Apple web-app meta
+  manifest.ts               Web manifest (fullscreen, landscape): Add to Home Screen = the only fullscreen on iPhone
   globals.css
   icon.png                  Favicon / app icon
+  apple-icon.png            180px home-screen icon (iOS)
   room/[code]/page.tsx      Room page: phase-switches Landing / Lobby / Game / Leaderboard; mounts TouchControls on touch devices
 
 components/
@@ -98,11 +100,12 @@ components/
     Waterfall.tsx           Waterfall/overflow visual at bucket edge
   ui/
     Countdown.tsx           Pre-match countdown overlay
-    FullscreenButton.tsx    Mobile-only fullscreen toggle (top-right, global)
+    FullscreenButton.tsx    Mobile-only fullscreen toggle; on iPhone Safari shows the Add to Home Screen hint instead
+    MuteButton.tsx          Sound on/off (top-right, global, remembered in localStorage)
     Hud.tsx                 In-match HUD (lives, fire state)
     Landing.tsx             Name-entry splash screen
     Leaderboard.tsx         End-match ranking screen
-    Lobby.tsx               Waiting room: player list, color picker, host start button + settings
+    Lobby.tsx               Waiting room: player list, color picker, host start button + settings (lives, timer, arena, cannon mount)
     OrientationGate.tsx     Full-screen portrait block for phones (auto-dismiss on rotate)
     PixelIcons.tsx          Pixel-art SVG icon renderer (anchor, boat, cannon, phone, …)
     TouchControls.tsx       On-screen dual-stick touch controls (touch devices only)
@@ -110,13 +113,14 @@ components/
     useTick.ts              RAF tick hook
 
 game/
+  audio/sfx.ts              Web Audio synth: fire/splash/hit/ram/sink/countdown/result + sea loop; unlocks on first gesture; mute
   input/useGameInput.ts     Keyboard/mouse → inputStore
   net/
     hostInputs.ts           Latest input per player (host side); BoatInput runtime shape
     protocol.ts             JSON wire types: ClientMsg, ServerMsg, PlayerMeta, Phase (snap/input are binary, see lib/wire.ts)
     useConnection.ts        PartySocket lifecycle, dispatches to stores
   sim/
-    aim.ts                  Cannon aim math
+    aim.ts                  Cannon aim math; mount helpers (isFrontCannon, mountYaw, mountZ): bow mount = stern mirrored in z
     hostState.ts            Host simulation state machine
     physicsHelpers.ts       Rapier helpers
   state/
@@ -137,8 +141,9 @@ lib/
   wire.ts                   Binary codec for the high-frequency snap + input frames (JSON for everything else)
 
 partykit/
-  server.ts                 PartyKit server: player registry, phase FSM, relay
-partykit.json               PartyKit project config
+  server.ts                 PartyServer relay (GameServer Durable Object + Worker entry): player registry, phase FSM, relay
+  tsconfig.json             Workers types for the server (root tsconfig excludes partykit/)
+wrangler.jsonc              Worker config: binding `Main` → party "main" → /parties/main/<room>
 ```
 
 ### Key data flows
@@ -149,7 +154,8 @@ partykit.json               PartyKit project config
 - **Color change:** client sends `setColor` → server validates (free?) → broadcasts `room` (real-time for all)
 - **Host failover:** client sends `vis{v}` on visibility change → server tracks backgrounded tabs; if host disconnects or stalls (watchdog timeout), promotes next foreground-visible player
 - **Start:** host sends `start` → server sets phase `countdown`, records `startEpoch`, arms host watchdog → broadcasts → HostWorld begins sim
-- **Simulation:** HostWorld sends binary `snap` (lib/wire.ts) → server rebroadcasts + rearms watchdog; `ev` events ride JSON relay
+- **Simulation:** HostWorld sends binary `snap` (lib/wire.ts) → server rebroadcasts + rearms watchdog; `ev` events ride JSON relay (host emits `splash` when a ball first dips below the wave surface)
+- **Sound:** EventFX plays every drained `ev` (volume falls with distance from the local boat); Countdown beeps; Leaderboard plays win/lose; Scene runs the sea loop
 - **Input:** clients send binary input frames (lib/wire.ts) → server splices in sender idx → relays to host connection → hostInputs map → next sim tick
 - **Stats/phase:** HostWorld sends `stats`/`phase` → server folds into PlayerMeta → broadcasts `room`; `phase=ended` triggers rank assignment
 - **Rematch:** host sends `rematch` → server resets to lobby (prunes disconnected ghosts, resets lives/stats)

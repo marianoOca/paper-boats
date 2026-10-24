@@ -165,6 +165,30 @@ export function Lobby() {
               ))}
             </div>
           </div>
+
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 700, marginBottom: 6 }}>Cannon</div>
+            <div style={{ display: "flex", gap: 6 }}>
+              {([
+                ["back", "Back"],
+                ["front", "Front"],
+              ] as const).map(([mount, label]) => (
+                <button
+                  key={mount}
+                  disabled={!isHost}
+                  onClick={() => isHost && send({ t: "setCannonMount", cannonMount: mount })}
+                  title={mount === "back" ? "Cannon on the stern, aims behind" : "Cannon on the bow, aims ahead"}
+                  style={{
+                    ...btn(settings.cannonMount === mount ? WOOD_ACTIVE : "var(--wood)"),
+                    opacity: isHost ? 1 : 0.7,
+                    cursor: isHost ? "pointer" : "not-allowed",
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
 
         <div style={{ marginTop: 18 }}>

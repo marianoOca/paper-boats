@@ -29,6 +29,18 @@ export const pirateBtn = (bg: string, extra?: CSSProperties): CSSProperties => (
   ...extra,
 });
 
+// Square wood icon button in the top-right corner (mute, fullscreen).
+export const ICON_BTN: CSSProperties = {
+  width: 44,
+  height: 44,
+  display: "grid",
+  placeItems: "center",
+  background: "rgba(91,58,26,0.72)",
+  border: "2px solid rgba(0,0,0,0.35)",
+  borderRadius: 8,
+  filter: `drop-shadow(${TEXT_SHADOW})`,
+};
+
 // Parchment text input (landing + name gate). Caller adds width where needed.
 export const INPUT: CSSProperties = {
   padding: "12px 14px",

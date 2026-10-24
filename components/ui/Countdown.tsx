@@ -3,16 +3,23 @@ import { useNetStore } from "../../game/state/netStore";
 import { useLobbyStore } from "../../game/state/lobbyStore";
 import { COUNTDOWN_MS } from "../../lib/constants";
 import { FONT_MONO } from "../../lib/uiStyles";
+import { useEffect } from "react";
+import { sfxBeep } from "../../game/audio/sfx";
 import { useTick } from "./useTick";
 
 export function Countdown() {
   useTick(60);
   const startEpoch = useLobbyStore((s) => s.startEpoch);
   const serverNow = useNetStore((s) => s.serverNow);
-  if (startEpoch == null) return null;
-  const remaining = COUNTDOWN_MS - (serverNow() - startEpoch);
+  const remaining = startEpoch == null ? COUNTDOWN_MS : COUNTDOWN_MS - (serverNow() - startEpoch);
   const n = Math.ceil(remaining / 1000);
   const label = remaining <= 0 ? "GO!" : String(n);
+  useEffect(() => {
+    if (startEpoch != null && label !== "GO!") sfxBeep(false);
+  }, [label, startEpoch]);
+  // The overlay unmounts the moment play starts, usually before "GO!" renders.
+  useEffect(() => () => sfxBeep(true), []);
+  if (startEpoch == null) return null;
 
   return (
     <div

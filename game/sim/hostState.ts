@@ -2,7 +2,7 @@ import { Euler, Quaternion, Vector3 } from "three";
 import type { RapierRigidBody } from "@react-three/rapier";
 import { BOAT, CANNON, RAM, START_LIVES, TICK_HZ } from "../../lib/constants";
 import { SUNK_TAUNTS, KILL_TAUNTS } from "../../lib/copy";
-import { BARREL_LEN } from "./aim";
+import { BARREL_LEN, isFrontCannon, mountYaw, mountZ } from "./aim";
 import { classifyRam } from "./physicsHelpers";
 import { useNetStore } from "../state/netStore";
 import { useGameStore } from "../state/gameStore";
@@ -61,6 +61,7 @@ class HostState {
   statsDirty = true;
   ballSeq = 0;
   pendingSpawns: BallSpec[] = [];
+  splashed = new Set<string>(); // balls that already hit the sea surface
   startLives = START_LIVES;
 
   reset() {
@@ -72,6 +73,7 @@ class HostState {
     this.statsDirty = true;
     this.ballSeq = 0;
     this.pendingSpawns = [];
+    this.splashed.clear();
   }
 
   /**
@@ -90,6 +92,7 @@ class HostState {
     this.statsDirty = true;
     this.ballSeq = 0;
     this.pendingSpawns = [];
+    this.splashed.clear();
     for (const p of players) {
       this.rt.set(p.id, {
         id: p.id,
@@ -160,12 +163,13 @@ class HostState {
 
     const rot = body.rotation();
     _q.set(rot.x, rot.y, rot.z, rot.w);
-    _aim.setFromEuler(new Euler(input.aimPitch, input.aimYaw + Math.PI, 0, "YXZ"));
+    const front = isFrontCannon();
+    _aim.setFromEuler(new Euler(input.aimPitch, input.aimYaw + mountYaw(front), 0, "YXZ"));
     _q.multiply(_aim);
     _dir.set(0, 0, 1).applyQuaternion(_q).normalize();
 
     const pos = body.translation();
-    _v.set(CANNON.muzzleLocal.x, CANNON.muzzleLocal.y, CANNON.muzzleLocal.z);
+    _v.set(CANNON.muzzleLocal.x, CANNON.muzzleLocal.y, mountZ(front));
     const rot2 = body.rotation();
     _q.set(rot2.x, rot2.y, rot2.z, rot2.w);
     _v.applyQuaternion(_q);
@@ -233,6 +237,13 @@ class HostState {
     v.deathTick = this.tick;
     this.statsDirty = true;
     emit({ k: "death", id, by: null, ...randomTaunts() });
+  }
+
+  /** First time a ball dips below the sea surface (the sea has no collider). */
+  ballSplash(id: string, point: [number, number, number]) {
+    if (this.splashed.has(id)) return;
+    this.splashed.add(id);
+    emit({ k: "splash", point });
   }
 
   onBallHit(ownerId: string, victimId: string, ball: RapierRigidBody) {

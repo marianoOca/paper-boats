@@ -7,6 +7,8 @@ import { CannonRig } from "./Cannon";
 import { MuzzleFlash } from "./MuzzleFlash";
 import { PixelSkull } from "../ui/PixelIcons";
 import { useInputStore } from "../../game/state/inputStore";
+import { useLobbyStore } from "../../game/state/lobbyStore";
+import { mountYaw } from "../../game/sim/aim";
 import { BOAT, DISCONNECT_GRACE_MS, START_LIVES } from "../../lib/constants";
 
 const DISCONNECT_MSG = "having connection issues, please don't shoot me >.<";
@@ -92,9 +94,10 @@ export interface BoatVisualProps {
 const SINK_MAX = 0.9;
 
 // Bake the glb into one editable geometry, tint it, normalize it (center, scale
-// longest horizontal axis -> TARGET_LEN, length onto +Z), then clip ONLY the stern
-// hull above the table plane so the folded gun deck shows. New instance per color.
-function useBoatScene(color: string, sunk?: boolean) {
+// longest horizontal axis -> TARGET_LEN, length onto +Z), then clip ONLY the gun-deck
+// end (stern, or bow when `front`) above the table plane so the folded deck shows.
+// New instance per color.
+function useBoatScene(color: string, sunk?: boolean, front?: boolean) {
   const { scene } = useGLTF(MODEL_URL);
   return useMemo(() => {
     const src = scene.clone(true);
@@ -159,7 +162,7 @@ function useBoatScene(color: string, sunk?: boolean) {
         [pos.getX(i + 1), pos.getY(i + 1), pos.getZ(i + 1)],
         [pos.getX(i + 2), pos.getY(i + 2), pos.getZ(i + 2)],
       ];
-      const cz = (tri[0][2] + tri[1][2] + tri[2][2]) / 3;
+      const cz = ((tri[0][2] + tri[1][2] + tri[2][2]) / 3) * (front ? -1 : 1); // bow deck = stern mirrored
       // spare the central tower: any triangle touching the boat's top apex (max y)
       const isTower = Math.max(tri[0][1], tri[1][1], tri[2][1]) >= maxY - 1e-3;
       let out: number[][][];
@@ -198,7 +201,7 @@ function useBoatScene(color: string, sunk?: boolean) {
     mesh.castShadow = true;
     mesh.receiveShadow = true;
     return { mesh, yFix };
-  }, [scene, color, sunk]);
+  }, [scene, color, sunk, front]);
 }
 
 // Folded-paper gun platform for the stern: the deck paper creased UP on the two
@@ -265,12 +268,12 @@ function SternFold({ color, sunk }: { color: string; sunk?: boolean }) {
   );
 }
 
-function LocalCannonRig({ position }: { position: [number, number, number] }) {
+function LocalCannonRig({ position, front }: { position: [number, number, number]; front: boolean }) {
   const yawRef = useRef<THREE.Group>(null);
   const elevRef = useRef<THREE.Group>(null);
   useFrame(() => {
     const { aimYaw, aimPitch } = useInputStore.getState();
-    if (yawRef.current) yawRef.current.rotation.y = aimYaw + Math.PI;
+    if (yawRef.current) yawRef.current.rotation.y = aimYaw + mountYaw(front);
     if (elevRef.current) elevRef.current.rotation.x = aimPitch;
   });
   return (
@@ -311,8 +314,11 @@ export function Boat({ color, name, lives = 3, maxLives = START_LIVES, sunk, con
     return () => clearTimeout(t);
   }, [connected]);
 
-  const { mesh, yFix } = useBoatScene(color, sunk);
+  const front = useLobbyStore((s) => s.settings.cannonMount === "front");
+  const { mesh, yFix } = useBoatScene(color, sunk, front);
   const fold = foldPoints();
+  const zSign = front ? -1 : 1; // bow deck = stern deck mirrored in z
+  const rigPos: [number, number, number] = [fold.P[0], fold.P[1], zSign * fold.P[2]];
   const sinkFraction = Math.min(1, Math.max(0, (maxLives - lives) / maxLives));
 
   const groupRef = useRef<THREE.Group>(null);
@@ -380,14 +386,16 @@ export function Boat({ color, name, lives = 3, maxLives = START_LIVES, sunk, con
     <>
       <group ref={groupRef}>
         <primitive object={mesh} />
-        {/* stern fold always shown (structural); cannon dynamic for local player, static for remote */}
-        <group position={[0, 0.02 + yFix, -0.9]}>
-          <SternFold color={color} sunk={sunk} />
+        {/* gun-deck fold always shown (structural); cannon dynamic for local player, static for remote */}
+        <group position={[0, 0.02 + yFix, zSign * -0.9]}>
+          <group scale={[1, 1, zSign]}>
+            <SternFold color={color} sunk={sunk} />
+          </group>
           {isLocal ? (
-            <LocalCannonRig position={[fold.P[0], fold.P[1], fold.P[2]]} />
+            <LocalCannonRig position={rigPos} front={front} />
           ) : showLabel ? (
-            <group position={[fold.P[0], fold.P[1], fold.P[2]]}>
-              <CannonRig yaw={Math.PI} yawRef={cannonYawRef} />
+            <group position={rigPos}>
+              <CannonRig yaw={mountYaw(front)} yawRef={cannonYawRef} />
             </group>
           ) : null}
         </group>

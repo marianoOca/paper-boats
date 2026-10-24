@@ -7,6 +7,7 @@ import { Boat } from "./Boat";
 import { hostState } from "../../game/sim/hostState";
 import { hostInputs } from "../../game/net/hostInputs";
 import { BOAT } from "../../lib/constants";
+import { isFrontCannon, mountYaw } from "../../game/sim/aim";
 import type { PlayerMeta } from "../../game/net/protocol";
 
 export function PhysicsBoat({
@@ -60,7 +61,7 @@ export function PhysicsBoat({
   const cannonRef = useRef<THREE.Group>(null);
   useFrame(() => {
     if (player.id !== selfId && cannonRef.current) {
-      cannonRef.current.rotation.y = (hostInputs.get(player.id)?.aimYaw ?? 0) + Math.PI;
+      cannonRef.current.rotation.y = (hostInputs.get(player.id)?.aimYaw ?? 0) + mountYaw(isFrontCannon());
     }
   });
 

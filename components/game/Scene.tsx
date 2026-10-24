@@ -10,6 +10,7 @@ import { CameraRig } from "./CameraRig";
 import { EventFX } from "./EventFX";
 import { TrajectoryPreview } from "./TrajectoryPreview";
 import { useLobbyStore, selectIsHost } from "../../game/state/lobbyStore";
+import { playSea } from "../../game/audio/sfx";
 
 // Direction matches directional light [40, 60, 20] — pushed far away.
 const SUN_POS: [number, number, number] = [320, 480, 160];
@@ -36,6 +37,11 @@ const SKY = "#6ab0e8";
 export function Scene() {
   const isHost = useLobbyStore(selectIsHost);
   const arenaMode = useLobbyStore((s) => s.settings.arenaMode);
+
+  useEffect(() => {
+    playSea(true);
+    return () => playSea(false);
+  }, []);
 
   // Swap HostWorld<->ClientBoats across TWO commits, not one. Both render <Boat>,
   // which mounts drei <Html> portals; tearing one subtree down and building the

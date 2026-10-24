@@ -16,6 +16,7 @@ export interface RoomSettings {
   timerSec: number | null;
   arenaMode: "walls" | "edge";
   startLives: number;
+  cannonMount: "back" | "front"; // stern or bow cannon, every boat
 }
 
 export interface PlayerMeta {
@@ -72,6 +73,7 @@ export type ClientMsg =
   | { t: "setTimer"; timerSec: number | null }
   | { t: "setArenaMode"; arenaMode: "walls" | "edge" }
   | { t: "setLives"; startLives: number }
+  | { t: "setCannonMount"; cannonMount: "back" | "front" }
   | { t: "start" }
   | { t: "rematch" }
   | { t: "ev"; ev: GameEvent }

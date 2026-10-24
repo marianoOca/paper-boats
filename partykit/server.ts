@@ -1,4 +1,4 @@
-import type * as Party from "partykit/server";
+import { Server, routePartykitRequest, type Connection } from "partyserver";
 import type {
   ClientMsg,
   PlayerMeta,
@@ -10,21 +10,19 @@ import { TAG_INPUT, TAG_SNAP } from "../lib/wire";
 
 const j = (m: unknown) => JSON.stringify(m);
 
-export default class GameServer implements Party.Server {
+export class GameServer extends Server {
   players = new Map<string, PlayerMeta>(); // insertion order = join order
   hidden = new Set<string>(); // ids whose tab is backgrounded (rAF paused → can't host)
   disconnectTimers = new Map<string, ReturnType<typeof setTimeout>>(); // grace timers
   hostWatchdog?: ReturnType<typeof setTimeout>; // fires if host stops streaming snaps
   phase: Phase = "lobby";
   hostId = "";
-  settings: RoomSettings = { timerSec: 120, arenaMode: "walls", startLives: START_LIVES };
+  settings: RoomSettings = { timerSec: 120, arenaMode: "walls", startLives: START_LIVES, cannonMount: "back" };
   startEpoch: number | null = null;
   endReason: "timeout" | "combat" | null = null;
 
-  constructor(readonly room: Party.Room) {}
-
   // ---- lifecycle ----------------------------------------------------------
-  onConnect(conn: Party.Connection) {
+  onConnect(conn: Connection) {
     // Reconnection: a returning socket reuses its stable id (saved in the browser),
     // so its slot still exists (boat, lives, stats, idx, color, name all preserved).
     // Just un-freeze it — the client resumes its boat with no name re-entry.
@@ -44,10 +42,10 @@ export default class GameServer implements Party.Server {
     conn.send(j(this.roomPayload()));
   }
 
-  onClose(conn: Party.Connection) {
+  onClose(conn: Connection) {
     this.markDisconnected(conn.id);
   }
-  onError(conn: Party.Connection) {
+  onError(conn: Connection) {
     this.markDisconnected(conn.id);
   }
 
@@ -152,7 +150,7 @@ export default class GameServer implements Party.Server {
   }
 
   // ---- messages -----------------------------------------------------------
-  onMessage(raw: string | ArrayBuffer, sender: Party.Connection) {
+  onMessage(sender: Connection, raw: string | ArrayBuffer) {
     // binary frames (snap 0x01, input 0x03) bypass JSON parsing entirely
     if (raw instanceof ArrayBuffer) {
       this.onBinary(raw, sender);
@@ -242,6 +240,13 @@ export default class GameServer implements Party.Server {
         }
         break;
 
+      case "setCannonMount":
+        if (isHost && this.phase === "lobby") {
+          this.settings.cannonMount = m.cannonMount;
+          this.broadcastRoom();
+        }
+        break;
+
       case "setLives":
         if (isHost && this.phase === "lobby") {
           this.settings.startLives = Math.max(1, Math.min(5, Math.round(m.startLives)));
@@ -268,7 +273,7 @@ export default class GameServer implements Party.Server {
       // host game events -> everyone else (rebroadcast raw). snap & input are
       // binary now (see onBinary); only `ev` still rides the JSON path.
       case "ev":
-        if (isHost) this.room.broadcast(raw, [sender.id]);
+        if (isHost) this.broadcast(raw, [sender.id]);
         break;
 
       // host authoritative stats -> fold into roster
@@ -302,11 +307,11 @@ export default class GameServer implements Party.Server {
   }
 
   // binary frames: snap (host -> all), input (client -> host, idx-tagged)
-  onBinary(buf: ArrayBuffer, sender: Party.Connection) {
+  onBinary(buf: ArrayBuffer, sender: Connection) {
     const tag = new Uint8Array(buf, 0, 1)[0];
     if (tag === TAG_SNAP) {
       if (sender.id === this.hostId) {
-        this.room.broadcast(buf, [sender.id]);
+        this.broadcast(buf, [sender.id]);
         this.armHostWatchdog(); // proof the host is still simulating
       }
       return;
@@ -320,7 +325,7 @@ export default class GameServer implements Party.Server {
       out[0] = TAG_INPUT;
       out[1] = me.idx;
       out.set(src.subarray(1), 2);
-      this.room.getConnection(this.hostId)?.send(out);
+      this.getConnection(this.hostId)?.send(out);
     }
   }
 
@@ -400,7 +405,7 @@ export default class GameServer implements Party.Server {
   }
 
   broadcastRoom() {
-    this.room.broadcast(j(this.roomPayload()));
+    this.broadcast(j(this.roomPayload()));
   }
 }
 
@@ -415,4 +420,12 @@ export function rankCompare(a: PlayerMeta, b: PlayerMeta): number {
   return b.lives - a.lives;
 }
 
-GameServer satisfies Party.Worker;
+// Worker entry: routes /parties/main/<room> to the GameServer Durable Object
+// (binding `Main` -> party "main", the partysocket default).
+type Env = { Main: DurableObjectNamespace<GameServer> };
+
+export default {
+  async fetch(request: Request, env: Env) {
+    return (await routePartykitRequest(request, env)) ?? new Response("Not found", { status: 404 });
+  },
+} satisfies ExportedHandler<Env>;

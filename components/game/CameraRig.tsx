@@ -9,6 +9,7 @@ import { MODE_CANNON } from "../../game/net/protocol";
 import { clamp, damp } from "../../lib/math";
 import { ARENA_RADIUS, CANNON } from "../../lib/constants";
 import { useLobbyStore } from "../../game/state/lobbyStore";
+import { isFrontCannon, mountYaw } from "../../game/sim/aim";
 
 const TP_DIST = 11;
 const TP_HEIGHT = 3;
@@ -88,10 +89,11 @@ export function CameraRig() {
     const tpTarget = target.set(boatPos.x, boatPos.y + 1.2, boatPos.z);
 
     // --- cannon first-person target ---
-    const aimYaw = boatYaw + ins.aimYaw + Math.PI;
+    const front = isFrontCannon();
+    const aimYaw = boatYaw + ins.aimYaw + mountYaw(front);
     const aimPitch = ins.aimPitch;
     // cannon pivot in world space (includes boat roll/pitch from waves)
-    muzzleW.set(0, 1.1, -1.6).applyQuaternion(boatQuat).add(boatPos);
+    muzzleW.set(0, 1.1, front ? 1.6 : -1.6).applyQuaternion(boatQuat).add(boatPos);
     const acp = Math.cos(aimPitch);
     aimDir.set(Math.sin(aimYaw) * acp, -Math.sin(aimPitch), Math.cos(aimYaw) * acp);
 

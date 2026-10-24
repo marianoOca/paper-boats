@@ -40,7 +40,7 @@ export const useLobbyStore = create<LobbyState>((set) => ({
   full: false,
   phase: "lobby",
   hostId: "",
-  settings: { timerSec: 120, arenaMode: "walls", startLives: 3 },
+  settings: { timerSec: 120, arenaMode: "walls", startLives: 3, cannonMount: "back" },
   players: [],
   startEpoch: null,
   endReason: null,

@@ -2,6 +2,7 @@ import { Euler, Quaternion, Vector3 } from "three";
 import { CANNON } from "../../lib/constants";
 import { MUZZLE_TIP_Z, TRUNNION_Z, BASE_CENTER_Z } from "../../components/game/Cannon";
 import { localBoat } from "../state/localBoat";
+import { useLobbyStore } from "../state/lobbyStore";
 
 // One source of truth for where the local player's cannon points, so the cannon
 // model, the trajectory preview, and (matching) the host's spawned ball all agree.
@@ -13,6 +14,13 @@ export const BARREL_LEN = MUZZLE_TIP_Z - TRUNNION_Z;
 // axis — so the trunnion ORBITS the yaw axis as you aim left/right. muzzleLocal is
 // the trunnion at straight-back (yaw=PI); we re-derive its orbit for any yaw.
 const TRUNNION_AHEAD = TRUNNION_Z - BASE_CENTER_Z;
+
+// Room setting: bow cannon faces forward (yaw 0), stern cannon faces back (PI).
+// aimYaw is always relative to this; the bow mount is the stern one mirrored in z.
+export const isFrontCannon = () => useLobbyStore.getState().settings.cannonMount === "front";
+export const mountYaw = (front: boolean) => (front ? 0 : Math.PI);
+/** Boat-local trunnion position when aimed straight out from the mount. */
+export const mountZ = (front: boolean) => (front ? -CANNON.muzzleLocal.z : CANNON.muzzleLocal.z);
 
 const _boatQ = new Quaternion();
 const _aimE = new Euler();
@@ -37,20 +45,22 @@ const out: Aim = { px: 0, py: 0, pz: 0, dx: 0, dy: 0, dz: 1, tx: 0, ty: 0, tz: 0
 export function computeAim(aimYaw: number, aimPitch: number): Aim {
   _boatQ.set(localBoat.qx, localBoat.qy, localBoat.qz, localBoat.qw);
 
-  // pivot = trunnion, orbiting the rig's yaw axis (boat-local), then to world.
-  // At theta=PI this reduces to muzzleLocal (straight-back).
-  const theta = aimYaw + Math.PI;
+  // pivot = trunnion, orbiting the rig's yaw axis (base centre, boat-local), then to
+  // world. Aimed straight out (aimYaw=0) this reduces to mountZ.
+  const front = isFrontCannon();
+  const theta = aimYaw + mountYaw(front);
+  const baseZ = mountZ(front) - TRUNNION_AHEAD * Math.cos(mountYaw(front));
   _pivot.set(
     CANNON.muzzleLocal.x + TRUNNION_AHEAD * Math.sin(theta),
     CANNON.muzzleLocal.y,
-    CANNON.muzzleLocal.z + TRUNNION_AHEAD * (1 + Math.cos(theta))
+    baseZ + TRUNNION_AHEAD * Math.cos(theta)
   ).applyQuaternion(_boatQ);
   out.px = localBoat.x + _pivot.x;
   out.py = localBoat.y + _pivot.y;
   out.pz = localBoat.z + _pivot.z;
 
   // barrel orientation = boat heading * aim(yaw,pitch)
-  _aimE.set(aimPitch, aimYaw + Math.PI, 0, "YXZ");
+  _aimE.set(aimPitch, theta, 0, "YXZ");
   _aimQ.setFromEuler(_aimE);
   _aimQ.premultiply(_boatQ); // boatQ * aimQ
   out.qx = _aimQ.x; out.qy = _aimQ.y; out.qz = _aimQ.z; out.qw = _aimQ.w;

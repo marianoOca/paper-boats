@@ -10,18 +10,19 @@ leaderboard.
 - **Next.js 14** (App Router) — frontend, deploys to **Vercel**
 - **React-Three-Fiber + three.js** — 3D rendering (pixel look = low-res render + nearest upscale)
 - **@react-three/rapier** — physics (boats, cannonballs, ramming, buoyancy)
-- **PartyKit** — realtime relay room (one per game) + lobby/meta authority
+- **PartyServer on Cloudflare Workers** (Durable Object) — realtime relay room (one per game) + lobby/meta authority. Client connects with `partysocket`.
 - **Host browser** — runs the authoritative Rapier simulation, broadcasts snapshots
 - **Zustand** — client state
+- **Web Audio** — sound effects + sea ambience, synthesized in code (no audio files)
 
 ### Authority split
 
 Two separate authorities:
 
-- **PartyKit room** = authoritative for meta/lobby state + message relay. Roster, host designation, room settings (timer, arena mode, starting lives), names, colors, ready flags, game phase, final standings. Survives any single browser disconnect.
+- **Relay room** = authoritative for meta/lobby state + message relay. Roster, host designation, room settings (timer, arena mode, starting lives), names, colors, ready flags, game phase, final standings. Survives any single browser disconnect.
 - **Host browser** = authoritative for simulation. All boat transforms, cannonballs, collisions, lives, damage. Broadcasts snapshots through the relay.
 
-The first player to connect is the host. Everyone (host included) talks only to the PartyKit room, which relays inputs to the host and world snapshots to all clients (star topology, no P2P).
+The first player to connect is the host. Everyone (host included) talks only to the relay room, which relays inputs to the host and world snapshots to all clients (star topology, no P2P).
 
 ### Networking protocol
 
@@ -37,11 +38,11 @@ Discrete events (`fire`, `hit`, `death`, `splash`) sent as reliable JSON message
 
 ```bash
 npm install
-npm run dev      # runs Next (:3000) AND PartyKit (:1999) together
+npm run dev      # runs Next (:3000) AND the relay via `wrangler dev` (:1999) together
 ```
 
 Open http://localhost:3000, enter a name, hit **Play**. Everyone joins the same
-fixed room (`/room/GAME`) — share that URL with others on the same PartyKit host.
+fixed room (`/room/GAME`) — share that URL with others on the same relay host.
 Need ≥2 ready players to start. Your name is remembered (localStorage), so reopening
 the app skips the splash and drops you back into the room — rejoining a match already
 in progress if you still hold a boat.
@@ -50,7 +51,7 @@ Individual processes if you prefer:
 
 ```bash
 npm run next     # Next dev only  (:3000)
-npm run party    # PartyKit dev only (:1999)
+npm run party    # relay dev only (:1999)
 ```
 
 ## Controls
@@ -66,29 +67,39 @@ npm run party    # PartyKit dev only (:1999)
 | Aim (cannon mode) | Mouse |
 | Fire | **Mouse Click** |
 
-**Mobile:** on-screen dual sticks (sail/steer left, look right; the left stick becomes FIRE and the right stick aims in cannon mode), plus a mode-toggle button. Phones are gated to landscape and offer a fullscreen toggle.
+**Mobile:** on-screen dual sticks (sail/steer left, look right; the left stick becomes FIRE and the right stick aims in cannon mode), plus a mode-toggle button. Phones are gated to landscape and offer a fullscreen toggle. iPhone Safari has no fullscreen API, so there the button explains **Add to Home Screen**: the installed app opens fullscreen (web manifest, `app/manifest.ts`).
+
+A mute button (top-right, every screen) silences sound; the choice is remembered per browser.
 
 Boats take time to gain/lose speed. Your **bow is a safe zone** — ram someone's
 side or stern to cost them a life (and get knocked back); bow-to-bow just bounces.
 Cannon shots arc under gravity (a dashed trajectory shows the landing spot) and
-have a reload.
+have a reload. The host picks where every boat's cannon sits in the lobby: **Back**
+(stern, aims behind) or **Front** (bow, aims ahead).
 
 ## Deploy
 
 Frontend and relay deploy separately.
 
-1. **PartyKit relay** (Cloudflare):
+1. **Relay** (Cloudflare Workers, free plan; `wrangler.jsonc`):
    ```bash
-   npx partykit deploy
+   npx wrangler login     # once
+   npm run deploy:party   # wrangler deploy
    ```
-   Gives you a host like `paper-armada.<your-account>.partykit.dev`.
+   Gives you a host like `paper-armada.<your-subdomain>.workers.dev`.
+   Free-plan budget: Durable Object requests cap at 100k/day, and each incoming
+   WebSocket message counts as 1/20 of a request. A 6-player match sends up to
+   ~180 messages/s (host snaps + clients' inputs, sent only on change), so at
+   least ~3 hours of 6-player play per day. Past the cap,
+   connections fail until 00:00 UTC; the free plan never bills.
 
 2. **Frontend** (Vercel): import the repo, then set the env var so the client
    knows where the relay lives:
    ```
-   NEXT_PUBLIC_PARTYKIT_HOST = paper-armada.<your-account>.partykit.dev
+   NEXT_PUBLIC_PARTYKIT_HOST = paper-armada.<your-subdomain>.workers.dev
    ```
-   (See `.env.example`.) Deploy. Done.
+   (See `.env.example`.) `NEXT_PUBLIC_*` is baked in at build time, so redeploy
+   after changing it.
 
 ## Leaderboard order
 
