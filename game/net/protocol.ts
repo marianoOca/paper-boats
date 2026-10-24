@@ -52,7 +52,8 @@ export type GameEvent =
   | { k: "fire"; owner: string; origin: [number, number, number]; dir: [number, number, number] }
   | { k: "hit"; victim: string; attacker: string; point: [number, number, number]; kind: "ball" | "ram" }
   | { k: "death"; id: string; by: string | null; sunkTaunt: number; killTaunt: number }
-  | { k: "splash"; point: [number, number, number] };
+  | { k: "splash"; point: [number, number, number] }
+  | { k: "bump"; point: [number, number, number] }; // boat-on-boat contact that did no damage
 
 export interface StatPatch {
   id: string;

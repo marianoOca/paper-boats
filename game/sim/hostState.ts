@@ -62,6 +62,7 @@ class HostState {
   ballSeq = 0;
   pendingSpawns: BallSpec[] = [];
   splashed = new Set<string>(); // balls that already hit the sea surface
+  bumpAt = new Map<string, number>(); // last no-damage bump per boat pair (sound throttle)
   startLives = START_LIVES;
 
   reset() {
@@ -254,6 +255,16 @@ class HostState {
     this.damage(victimId, ownerId, "ball", _dir);
   }
 
+  /** No-damage boat contact. Grinding hulls re-trigger contacts, so one per pair per 400 ms. */
+  private bump(aId: string, bId: string, A: RapierRigidBody, B: RapierRigidBody) {
+    const key = `${aId}|${bId}`;
+    const now = this.now();
+    if (now - (this.bumpAt.get(key) ?? -Infinity) < 400) return;
+    this.bumpAt.set(key, now);
+    const a = A.translation(), b = B.translation();
+    emit({ k: "bump", point: [(a.x + b.x) / 2, (a.y + b.y) / 2, (a.z + b.z) / 2] });
+  }
+
   onRam(aId: string, bId: string) {
     const A = this.bodies.get(aId);
     const B = this.bodies.get(bId);
@@ -271,6 +282,7 @@ class HostState {
       knock(B, dir, RAM.knockback * mB, 1);
       ra.ramCdUntil = now + RAM.cooldownMs;
       rb.ramCdUntil = now + RAM.cooldownMs;
+      this.bump(aId, bId, A, B);
       return;
     }
     if (aFront && !bFront) {
@@ -278,17 +290,18 @@ class HostState {
         knock(A, dir, RAM.knockback * mA, -1);
         ra.ramCdUntil = now + RAM.cooldownMs;
       }
-      this.damage(bId, aId, "ram", dir);
+      if (!this.damage(bId, aId, "ram", dir)) this.bump(aId, bId, A, B);
     } else if (bFront && !aFront) {
       if (now > rb.ramCdUntil) {
         knock(B, dir, RAM.knockback * mB, 1);
         rb.ramCdUntil = now + RAM.cooldownMs;
       }
-      this.damage(aId, bId, "ram", dir.clone().negate());
+      if (!this.damage(aId, bId, "ram", dir.clone().negate())) this.bump(aId, bId, A, B);
     } else {
       // side/side glance: tiny separation, no damage
       knock(A, dir, 2 * mA, -1);
       knock(B, dir, 2 * mB, 1);
+      this.bump(aId, bId, A, B);
     }
   }
 

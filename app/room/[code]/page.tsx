@@ -12,6 +12,7 @@ import { Landing } from "../../../components/ui/Landing";
 import { TouchControls } from "../../../components/ui/TouchControls";
 import { useDevice } from "../../../components/ui/useDevice";
 import { FONT_MONO } from "../../../lib/uiStyles";
+import { playSea } from "../../../game/audio/sfx";
 
 // crypto.randomUUID only exists in secure contexts (https / localhost); LAN http
 // access has none. We only need per-tab uniqueness, not crypto strength.
@@ -27,6 +28,11 @@ export default function RoomPage({ params }: { params: { code: string } }) {
   const [name, setName] = useState<string | null>(null);
   const [clientId, setClientId] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    playSea(true); // lobby, match and leaderboard
+    return () => playSea(false);
+  }, []);
 
   useEffect(() => {
     // Stable id in localStorage so a reopened tab (or refresh) resumes the same slot —

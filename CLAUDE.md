@@ -113,7 +113,7 @@ components/
     useTick.ts              RAF tick hook
 
 game/
-  audio/sfx.ts              Web Audio synth: fire/splash/hit/ram/sink/countdown/result + sea loop; unlocks on first gesture; mute
+  audio/sfx.ts              Web Audio synth: fire/splash/hit/ram/bump/sink/countdown/result + sea loop; compressor + reverb bus; unlocks on first gesture; mute
   input/useGameInput.ts     Keyboard/mouse → inputStore
   net/
     hostInputs.ts           Latest input per player (host side); BoatInput runtime shape
@@ -155,7 +155,7 @@ wrangler.jsonc              Worker config: binding `Main` → party "main" → /
 - **Host failover:** client sends `vis{v}` on visibility change → server tracks backgrounded tabs; if host disconnects or stalls (watchdog timeout), promotes next foreground-visible player
 - **Start:** host sends `start` → server sets phase `countdown`, records `startEpoch`, arms host watchdog → broadcasts → HostWorld begins sim
 - **Simulation:** HostWorld sends binary `snap` (lib/wire.ts) → server rebroadcasts + rearms watchdog; `ev` events ride JSON relay (host emits `splash` when a ball first dips below the wave surface)
-- **Sound:** EventFX plays every drained `ev` (volume falls with distance from the local boat); Countdown beeps; Leaderboard plays win/lose; Scene runs the sea loop
+- **Sound:** EventFX plays every drained `ev` (volume falls and reverb grows with distance from the local boat); host emits `bump` for boat contact that did no damage (bow-to-bow, glance, invulnerable victim; throttled per pair); Countdown beeps; Leaderboard plays win/lose; the room page runs the sea loop (lobby + match)
 - **Input:** clients send binary input frames (lib/wire.ts) → server splices in sender idx → relays to host connection → hostInputs map → next sim tick
 - **Stats/phase:** HostWorld sends `stats`/`phase` → server folds into PlayerMeta → broadcasts `room`; `phase=ended` triggers rank assignment
 - **Rematch:** host sends `rematch` → server resets to lobby (prunes disconnected ghosts, resets lives/stats)
