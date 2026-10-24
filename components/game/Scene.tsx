@@ -8,6 +8,7 @@ import { HostWorld } from "./HostWorld";
 import { ClientBoats } from "./ClientBoats";
 import { CameraRig } from "./CameraRig";
 import { EventFX } from "./EventFX";
+import { BoatFoam } from "./BoatFoam";
 import { TrajectoryPreview } from "./TrajectoryPreview";
 import { useLobbyStore, selectIsHost } from "../../game/state/lobbyStore";
 
@@ -65,6 +66,7 @@ export function Scene() {
       <Ocean mode={arenaMode} />
       <Bucket mode={arenaMode} />
       <Waterfall />
+      <BoatFoam />
       {driver === "host" && <HostWorld />}
       {driver === "client" && <ClientBoats />}
       <TrajectoryPreview />

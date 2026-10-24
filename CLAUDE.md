@@ -83,7 +83,8 @@ app/
 components/
   Heart.tsx                 Heart SVG used in HUD for lives
   game/
-    Boat.tsx                3D boat mesh (color prop)
+    Boat.tsx                3D boat mesh (color prop); hullLift() = hull height above its body
+    BoatFoam.tsx            Per-boat foam in the rim-foam style: faceted collar hung from the hull bottom edge + wake ridges
     Bucket.tsx              Static bucket arena wall (cylinder collider + mesh)
     CameraRig.tsx           Spring-follow camera rig (third-person ↔ cannon modes)
     Cannon.tsx              Cannon mesh + aim/fire UI (local player); exports MUZZLE_TIP_Z
@@ -129,6 +130,7 @@ game/
     inputStore.ts           Zustand: local input frame
     lobbyStore.ts           Zustand: players, phase, settings, myId, pendingName (name picked at splash, committed on room mount)
     localBoat.ts            Derived local boat state
+    boatPoses.ts            Every boat's rendered pose per frame (HostWorld/ClientBoats write, BoatFoam reads)
     netStore.ts             Zustand: socket ref + send helper
     tauntStore.ts           Zustand: taunt message state
 

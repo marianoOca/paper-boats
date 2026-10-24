@@ -6,12 +6,12 @@ import { waveGLSL } from "../../lib/waves";
 import { ARENA_RADIUS } from "../../lib/constants";
 import { renderState } from "../../game/state/fx";
 
-const SIZE = ARENA_RADIUS * 2 + 60;
-const SEG = 80; // coarse enough that triangles read as low-poly facets
+export const OCEAN_SIZE = ARENA_RADIUS * 2 + 60;
+export const OCEAN_SEG = 80; // coarse enough that triangles read as low-poly facets
 
 export function Ocean({ mode = "walls" }: { mode?: "walls" | "edge" }) {
   const geometry = useMemo(() => {
-    const g = new THREE.PlaneGeometry(SIZE, SIZE, SEG, SEG);
+    const g = new THREE.PlaneGeometry(OCEAN_SIZE, OCEAN_SIZE, OCEAN_SEG, OCEAN_SEG);
     g.rotateX(-Math.PI / 2); // lie flat in XZ, +Y up
     return g;
   }, []);

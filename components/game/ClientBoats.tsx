@@ -2,11 +2,13 @@
 import { useRef } from "react";
 import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
-import { Boat } from "./Boat";
+import { Boat, hullLift } from "./Boat";
 import { sampleWorld } from "../../game/state/gameStore";
 import { useLobbyStore } from "../../game/state/lobbyStore";
 import { useTauntStore } from "../../game/state/tauntStore";
 import { localBoat } from "../../game/state/localBoat";
+import { setBoatPose } from "../../game/state/boatPoses";
+import { FLAG_ALIVE } from "../../game/net/protocol";
 import { CANNON } from "../../lib/constants";
 import { isFrontCannon, mountYaw } from "../../game/sim/aim";
 
@@ -29,6 +31,7 @@ export function ClientBoats() {
         g.visible = true;
         g.position.set(e.x, e.y, e.z);
         g.quaternion.set(e.qx, e.qy, e.qz, e.qw);
+        setBoatPose(id, e, { x: e.qx, y: e.qy, z: e.qz, w: e.qw }, hullLift(e.lives, startLives), (e.flags & FLAG_ALIVE) !== 0);
         if (id === myId) {
           localBoat.present = true;
           localBoat.x = e.x;

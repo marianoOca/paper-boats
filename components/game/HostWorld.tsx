@@ -13,6 +13,8 @@ import { useTauntStore } from "../../game/state/tauntStore";
 import { useNetStore } from "../../game/state/netStore";
 import { useInputStore } from "../../game/state/inputStore";
 import { localBoat } from "../../game/state/localBoat";
+import { setBoatPose } from "../../game/state/boatPoses";
+import { hullLift } from "./Boat";
 import { renderState } from "../../game/state/fx";
 import { waveHeight } from "../../lib/waves";
 import {
@@ -111,6 +113,8 @@ function HostLoop({ onSpawn }: { onSpawn: (s: BallSpec) => void }) {
         if (!rt.fellOff && Math.hypot(t.x, t.z) > ARENA_RADIUS) rt.fellOff = true;
         if (rt.fellOff && rt.alive && t.y < WATER_LEVEL) hostState.onFellOff(p.id);
       }
+
+      setBoatPose(p.id, t, body.rotation(), hullLift(rt.lives, hostState.startLives), rt.alive);
 
       if (!rt.fellOff) applyBuoyancy(body, hostState.simTime, dt);
       applyRighting(body, dt);

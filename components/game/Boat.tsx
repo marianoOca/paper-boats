@@ -93,6 +93,11 @@ export interface BoatVisualProps {
 // Max world-units the hull lowers as lives are lost (fully sunk = this offset).
 const SINK_MAX = 0.9;
 
+/** Height of the hull mesh above its physics body while afloat: lower as lives are lost. */
+export function hullLift(lives: number, maxLives: number) {
+  return 0.4 - Math.min(1, Math.max(0, (maxLives - lives) / maxLives)) * SINK_MAX;
+}
+
 // Bake the glb into one editable geometry, tint it, normalize it (center, scale
 // longest horizontal axis -> TARGET_LEN, length onto +Z), then clip ONLY the gun-deck
 // end (stern, or bow when `front`) above the table plane so the folded deck shows.
@@ -342,7 +347,7 @@ export function Boat({ color, name, lives = 3, maxLives = START_LIVES, sunk, con
     anim.prevSunk = !!sunk;
 
     if (!sunk) {
-      if (anim.phase === 0) g.position.y = 0.4 -sinkFraction * SINK_MAX;
+      if (anim.phase === 0) g.position.y = hullLift(lives, maxLives);
       return;
     }
 
